@@ -122,7 +122,7 @@ router.beforeEach(async (to, _from, next) => {
 
   // 如果路由需要认证且用户未登录，跳转到登录页
   if (to.meta.requiresAuth && !hasToken) {
-    next({ name: 'login' })
+    next({ name: 'login', query: { redirect: to.fullPath } })
     return
   }
 
@@ -139,7 +139,7 @@ router.beforeEach(async (to, _from, next) => {
       if (error?.response?.status === 401 || error?.response?.status === 403) {
         tokenStore.removeToken()
         userStore.clearUserInfo()
-        next({ name: 'login' })
+        next({ name: 'login', query: { redirect: to.fullPath } })
         return
       }
       // 其他错误不阻止路由跳转
