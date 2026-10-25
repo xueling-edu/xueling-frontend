@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { flushPromises, shallowMount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import BookDetail from './BookDetail.vue'
 
 const api = vi.hoisted(() => ({
@@ -34,6 +34,7 @@ function mountBook() {
 }
 
 describe('word book detail', () => {
+  afterEach(() => vi.unstubAllGlobals())
   beforeEach(() => {
     vi.clearAllMocks()
     api.getWordBookDetail.mockResolvedValue({ code: 0, data: {
@@ -70,6 +71,21 @@ describe('word book detail', () => {
     await flushPromises()
     expect(api.setStudyBookEnabled).toHaveBeenCalledWith('book-1', true)
     expect(wrapper.find('.primary-action').text()).toContain('进入今日学习')
+    wrapper.unmount()
+  })
+
+  it('plays a word from the book list', async () => {
+    const speak = vi.fn()
+    vi.stubGlobal('speechSynthesis', { cancel: vi.fn(), speak })
+    vi.stubGlobal('SpeechSynthesisUtterance', class {
+      lang = ''
+      rate = 1
+      constructor(public text: string) {}
+    })
+    const wrapper = mountBook()
+    await flushPromises()
+    await wrapper.find('.audio-button').trigger('click')
+    expect(speak.mock.calls[0]![0]).toMatchObject({ text: 'word1', lang: 'en-US' })
     wrapper.unmount()
   })
 })

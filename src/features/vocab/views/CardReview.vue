@@ -290,6 +290,7 @@ import WordFamilyTree from '@/features/vocab/WordFamilyTree.vue'
 import { getWordsByIds, getWordFamily } from '@/features/vocab/api'
 import type { WordFamilyNodeVO } from '@/features/vocab/types'
 import { useReviewStore } from '@/features/vocab/reviewStore'
+import { bestEnglishVoice, speechErrorMessage } from '@/utils/wordSpeech'
 
 const router = useRouter()
 const route = useRoute()
@@ -412,19 +413,17 @@ const highlightedContent = computed(() => {
 })
 
 const getBestVoice = () => {
-    const voices = window.speechSynthesis.getVoices()
-    return voices.find(v => v.name.includes('Google US English')) || 
-           voices.find(v => v.name.includes('Microsoft Zira')) ||    
-           voices.find(v => v.lang === 'en-US') || 
-           voices.find(v => v.lang.startsWith('en')) ||
-           null
+    return bestEnglishVoice(window.speechSynthesis) ?? null
 }
 
 // 音频控制
 const toggleAudio = () => {
+    if (!window.speechSynthesis || typeof SpeechSynthesisUtterance === 'undefined') {
+        ElMessage.warning('当前浏览器不支持网页语音，请尝试系统浏览器')
+        return
+    }
     if (isPlaying.value) {
-        window.speechSynthesis.cancel()
-        isPlaying.value = false
+        cancelAudio()
     } else {
         // 去除 Markdown 标记和 HTML 标签，确保朗读纯文本
         const text = consolidationData.value.content
@@ -447,6 +446,7 @@ const toggleAudio = () => {
         utterance.onerror = (e) => { 
             console.error('Speech synthesis error:', e)
             isPlaying.value = false 
+            if (e.error !== 'canceled' && e.error !== 'interrupted') ElMessage.warning(speechErrorMessage(e.error))
         }
         
         window.speechSynthesis.speak(utterance)
@@ -456,8 +456,10 @@ const toggleAudio = () => {
 }
 
 const cancelAudio = () => {
-    window.speechSynthesis.cancel()
+    const synthesis = window.speechSynthesis
+    if (synthesis && (audioPlayer.value || synthesis.speaking || synthesis.pending)) synthesis.cancel()
     isPlaying.value = false
+    audioPlayer.value = null
 }
 
 // 单词点击交互（通过事件委托）
@@ -706,12 +708,12 @@ const format = (percentage: number) => (percentage === 100 ? 'Finished' : `${per
 
 // 使用浏览器原生 Web Speech API 播放发音
 const playAudio = (text: string) => {
-  if (!window.speechSynthesis) {
-      ElMessage.warning('当前浏览器不支持语音播放')
+  if (!window.speechSynthesis || typeof SpeechSynthesisUtterance === 'undefined') {
+      ElMessage.warning('当前浏览器不支持网页语音，请尝试系统浏览器')
       return
   }
   // 播放前先取消之前的发音
-  window.speechSynthesis.cancel()
+  cancelAudio()
   
   const utterance = new SpeechSynthesisUtterance(text)
   
@@ -734,9 +736,18 @@ const playAudio = (text: string) => {
   utterance.onerror = (e) => {
       console.error('Audio playback error:', e)
       audioPlayer.value = null
+      if (e.error !== 'canceled' && e.error !== 'interrupted') {
+          ElMessage.warning(speechErrorMessage(e.error))
+      }
   }
 
-  window.speechSynthesis.speak(utterance)
+  try {
+      window.speechSynthesis.speak(utterance)
+  } catch (error) {
+      console.error('Audio playback error:', error)
+      audioPlayer.value = null
+      ElMessage.warning('发音播放失败，请检查设备声音设置')
+  }
 }
 
 const handleResult = (result: 'forget' | 'remember') => {

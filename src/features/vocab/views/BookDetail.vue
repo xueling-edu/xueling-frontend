@@ -186,6 +186,7 @@ import { matchWords, getWordBookDetail, addWordsToBook, removeWordsFromBook, set
 import type { WordDictionary, WordVO } from '@/features/vocab/types'
 import { useReviewStore } from '@/features/vocab/reviewStore'
 import PageBreadcrumb from '@/components/PageBreadcrumb.vue'
+import { cancelEnglishWord, speakEnglishWord } from '@/utils/wordSpeech'
 
 const route = useRoute()
 const router = useRouter()
@@ -294,17 +295,11 @@ function jumpToPage(event: Event) {
   if (Number.isFinite(value)) changePage(Math.trunc(value))
 }
 function playWordAudio(word: string) {
-  if (!('speechSynthesis' in window)) {
-    ElMessage.warning('当前浏览器不支持语音播放')
-    return
+  if (!speakEnglishWord(word, message => ElMessage.warning(message))) {
+    ElMessage.warning('当前浏览器不支持网页语音，请尝试系统浏览器')
   }
-  window.speechSynthesis.cancel()
-  const utterance = new SpeechSynthesisUtterance(word)
-  utterance.lang = 'en-US'
-  utterance.rate = 0.85
-  window.speechSynthesis.speak(utterance)
 }
-onUnmounted(() => window.speechSynthesis?.cancel())
+onUnmounted(cancelEnglishWord)
 
 function startReviewWithWords(list: WordVO[]) {
   if (list.length < 5 || list.length > 10) return
@@ -471,7 +466,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid #bd914d; outline-
 .phonetic { color: #718175; font-size: 13px; overflow-wrap: anywhere; }
 .meaning { color: #3c5140; font-size: 14px; line-height: 1.55; white-space: pre-line; overflow-wrap: anywhere; }
 .word-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
-.audio-button { width: 34px; height: 34px; border: 1px solid #cbdacb; color: #315b40; background: #f0f6ef; border-radius: 50%; font-size: 17px; }
+.audio-button { width: 44px; height: 44px; border: 1px solid #cbdacb; color: #315b40; background: #f0f6ef; border-radius: 50%; font-size: 17px; }
 .audio-button:hover { background: #dcebdc; }
 .remove-button { border: 0; background: transparent; color: #9c5f53; padding: 8px; font-size: 12px; }
 .remove-button:hover { text-decoration: underline; }

@@ -77,6 +77,23 @@ describe('today study review recovery', () => {
     wrapper.unmount()
   })
 
+  it('plays the revealed word when the pronunciation button is clicked', async () => {
+    const speak = vi.fn()
+    vi.stubGlobal('speechSynthesis', { cancel: vi.fn(), speak })
+    vi.stubGlobal('SpeechSynthesisUtterance', class {
+      lang = ''
+      rate = 1
+      constructor(public text: string) {}
+    })
+    const wrapper = mountStudy()
+    await flushPromises()
+    await wrapper.find('.reveal-button').trigger('click')
+    await wrapper.find('.audio-button').trigger('click')
+    expect(speak).toHaveBeenCalledOnce()
+    expect(speak.mock.calls[0]![0]).toMatchObject({ text: 'hello', lang: 'en-US' })
+    wrapper.unmount()
+  })
+
   it('lays out escaped multiline meanings as separate parts of speech', async () => {
     api.getTodayStudy.mockResolvedValueOnce({ code: 0, data: {
       dueCount: 1, newRemaining: 0, todayReviewed: 0, todayNew: 0,

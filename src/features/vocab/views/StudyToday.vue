@@ -199,6 +199,7 @@ import type { FollowupStudy } from '@/features/vocab/followupStudy'
 import { createReviewRequestId } from '@/features/vocab/requestId'
 import { useUserStore } from '@/stores/user'
 import PageBreadcrumb from '@/components/PageBreadcrumb.vue'
+import { cancelEnglishWord, speakEnglishWord } from '@/utils/wordSpeech'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -313,12 +314,9 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 function playAudio(word: string) {
-  if (!('speechSynthesis' in window)) return ElMessage.warning('当前浏览器不支持语音播放')
-  window.speechSynthesis.cancel()
-  const utterance = new SpeechSynthesisUtterance(word)
-  utterance.lang = 'en-US'
-  utterance.rate = 0.85
-  window.speechSynthesis.speak(utterance)
+  if (!speakEnglishWord(word, message => ElMessage.warning(message))) {
+    ElMessage.warning('当前浏览器不支持网页语音，请尝试系统浏览器')
+  }
 }
 
 function rate(rating: 1 | 2 | 3 | 4) {
@@ -435,7 +433,7 @@ onMounted(async () => {
 })
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
-  window.speechSynthesis?.cancel()
+  cancelEnglishWord()
 })
 </script>
 

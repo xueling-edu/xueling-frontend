@@ -322,7 +322,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, reactive } from 'vue'
+import { ref, onMounted, onUnmounted, reactive } from 'vue'
 import { 
   Document, 
   Close, 
@@ -347,6 +347,7 @@ import { useTokenStore } from '@/stores/token'
 import { useRoute } from 'vue-router'
 import { createFeedback } from '@/features/feedback/api'
 import { createRequestId } from '@/utils/requestId'
+import { cancelEnglishWord, speakEnglishWord } from '@/utils/wordSpeech'
 
 const tokenStore = useTokenStore()
 const route = useRoute()
@@ -391,6 +392,7 @@ const addingToBook = ref(false)
 // 切换抽屉
 const toggleDrawer = () => {
   isOpen.value = !isOpen.value
+  if (!isOpen.value) cancelEnglishWord()
 }
 
 // 执行翻译
@@ -402,15 +404,8 @@ const handleTranslate = async () => {
 // 播放发音
 const playPronunciation = () => {
   if (!currentResult.value?.word) return
-  
-  try {
-    const utterance = new SpeechSynthesisUtterance(currentResult.value.word)
-    utterance.lang = 'en-US'
-    utterance.rate = 0.8
-    window.speechSynthesis.speak(utterance)
-  } catch (error) {
-    console.error('发音失败:', error)
-    ElMessage.warning('发音功能暂不可用')
+  if (!speakEnglishWord(currentResult.value.word, message => ElMessage.warning(message))) {
+    ElMessage.warning('当前浏览器不支持网页语音，请尝试系统浏览器')
   }
 }
 
@@ -682,21 +677,17 @@ const formatTime = (timestamp: number) => {
 }
 
 // 监听全局快捷键
-onMounted(() => {
-  const handleKeydown = (e: KeyboardEvent) => {
-    // Ctrl/Cmd + Shift + T
-    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'T') {
-      e.preventDefault()
-      toggleDrawer()
-    }
+const handleKeydown = (e: KeyboardEvent) => {
+  // Ctrl/Cmd + Shift + T
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'T') {
+    e.preventDefault()
+    toggleDrawer()
   }
-  
-  window.addEventListener('keydown', handleKeydown)
-  
-  // 组件卸载时移除监听
-  return () => {
-    window.removeEventListener('keydown', handleKeydown)
-  }
+}
+onMounted(() => window.addEventListener('keydown', handleKeydown))
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown)
+  cancelEnglishWord()
 })
 </script>
 
