@@ -140,7 +140,7 @@ async function toggleBook(book: DisplayBook) {
   try {
     await setStudyBookEnabled(book.id, !book.studyEnabled)
     book.studyEnabled = !book.studyEnabled
-    ElMessage.success(book.studyEnabled ? '已加入学习计划，现在可以开始今日学习' : '已移出学习计划')
+    ElMessage.success(book.studyEnabled ? '已加入学习计划，现在可以开始今日学习' : '已移出学习计划，历史记录保留')
   } catch (error: any) {
     ElMessage.error(error?.msg || '更新学习计划失败')
   } finally {

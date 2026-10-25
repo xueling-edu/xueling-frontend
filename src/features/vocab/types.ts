@@ -149,6 +149,7 @@ export interface StudyFamiliarityWord {
   word: string
   meaning: string
   stage: Exclude<FamiliarityStage, 'ALL'>
+  inStudyPlan: boolean
   due: boolean
   dueAt: string
   lapseCount: number

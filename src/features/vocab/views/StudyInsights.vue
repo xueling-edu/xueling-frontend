@@ -98,7 +98,7 @@ onMounted(() => {
         <section class="history" aria-labelledby="history-title">
           <div class="section-heading">
             <h2 id="history-title">每日记录</h2>
-            <p>每日记录汇总全部词书；积压为当日结束时待复习数，今天显示当前数。</p>
+            <p>每日记录汇总全部词书；历史积压按已学卡片回算，今天只计学习计划内的待复习词。</p>
           </div>
           <p v-if="totalReviews === 0" class="empty-note">这段时间还没有评分记录。完成一次今日学习后，记录会出现在这里。</p>
           <div v-for="row in latestFirst" :key="row.date" class="day-row">

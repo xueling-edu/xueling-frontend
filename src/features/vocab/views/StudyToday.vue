@@ -37,7 +37,7 @@
       <section v-else-if="currentCard" class="session" aria-label="学习卡片" aria-live="polite">
         <div class="session-meta">
           <span class="pill">{{ currentCard.newCard ? '新词' : '到期复习' }}</span>
-          <span>今日已完成 {{ today!.todayReviewed }} 次</span>
+          <span class="session-counts">今日已完成 {{ today!.todayReviewed }} 次 <i aria-hidden="true">·</i> 待复习 {{ today!.dueCount }} <i aria-hidden="true">·</i> 新词额度 {{ today!.newRemaining }}</span>
         </div>
         <div class="flashcard" :class="{ revealed }">
           <p class="card-guidance">{{ revealed ? '对照刚才在心里给出的答案' : '只看英文，先独立想出中文释义' }}</p>
@@ -104,16 +104,26 @@
 
       <section v-if="today && !loading && !loadError && !currentCard && !pendingReview && planState !== 'none'" class="metrics" aria-label="今日学习概览">
         <div class="metric"><span>待复习</span><strong>{{ today.dueCount }}</strong></div>
-        <div class="metric"><span>可学新词</span><strong>{{ today.newRemaining }}</strong></div>
+        <div class="metric"><span>剩余新词额度</span><strong>{{ today.newRemaining }}</strong></div>
         <div class="metric"><span>今日已完成</span><strong>{{ today.todayReviewed }}</strong></div>
       </section>
     </div>
 
     <el-dialog v-model="settingsOpen" title="学习设置" width="min(92vw, 440px)">
       <el-form v-if="settingsDraft" label-position="top">
-        <el-form-item label="每天最多学习新词"><el-input-number v-model="settingsDraft.dailyNewLimit" :min="0" :max="100" /></el-form-item>
-        <el-form-item label="目标记忆率"><el-slider v-model="retentionPercent" :min="80" :max="97" :step="1" show-input /></el-form-item>
-        <el-form-item label="时区"><el-input v-model="settingsDraft.timeZone" placeholder="Asia/Shanghai" /></el-form-item>
+        <el-form-item label="每天最多学习新词">
+          <el-input-number v-model="settingsDraft.dailyNewLimit" :min="0" :max="100" />
+          <p class="setting-help">到期复习优先；积压较多时会暂缓新词。</p>
+        </el-form-item>
+        <el-form-item label="目标记忆率">
+          <el-slider v-model="retentionPercent" :min="80" :max="97" :step="1" show-input />
+          <p class="setting-help">目标越高，通常需要复习得越频繁。建议先使用默认值。</p>
+        </el-form-item>
+        <el-form-item label="时区">
+          <el-input v-model="settingsDraft.timeZone" placeholder="Asia/Shanghai" />
+          <button class="zone-action" type="button" @click="settingsDraft.timeZone = deviceTimeZone">使用设备时区（{{ deviceTimeZone }}）</button>
+          <p class="setting-help">用于划分每天的学习记录；修改后，过去的打卡日期不会重算。</p>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="settingsOpen = false">取消</el-button>
@@ -149,7 +159,8 @@ const shownAt = ref(Date.now())
 const settingsOpen = ref(false)
 const savingSettings = ref(false)
 const settingsDraft = ref<StudySettings | null>(null)
-const timeZone = ref(Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai')
+const deviceTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai'
+const timeZone = ref(deviceTimeZone)
 const retentionPercent = computed({
   get: () => Math.round((settingsDraft.value?.desiredRetention ?? 0.9) * 100),
   set: value => { if (settingsDraft.value) settingsDraft.value.desiredRetention = value / 100 }
@@ -319,6 +330,10 @@ button { cursor: pointer; font: inherit; }
 .metric:last-child { border-right: 0; }
 .metric span { color: #617263; font-size: 12px; }.metric strong { font-size: 25px; line-height: 1; font-family: Georgia, serif; }
 .session { max-width: 800px; margin: 0 auto; }.session-meta { display: flex; justify-content: space-between; align-items: center; color: #7c8d7f; font-size: 13px; margin-bottom: 13px; }
+.session-counts { text-align:right; font-variant-numeric:tabular-nums; }.session-counts i { margin:0 6px; font-style:normal; color:#b3c1b1; }
+.setting-help { width:100%; margin:7px 0 0; color:var(--xl-ink-soft); font-size:12px; line-height:1.5; }
+.zone-action { display:block; width:100%; margin-top:6px; padding:2px 0; border:0; background:transparent; color:var(--xl-brand); font-size:12px; font-weight:700; text-align:left; }
+.zone-action:hover { text-decoration:underline; }.zone-action:focus-visible { outline:2px solid var(--xl-accent); outline-offset:2px; }
 .pill { background: #dbe7da; color: #326348; border-radius: 99px; padding: 6px 12px; font-weight: 800; }
 .flashcard { background: #fffef9; min-height: 330px; border-radius: 24px; border: 1px solid #d5e1d1; box-shadow: 0 16px 36px rgba(50, 74, 47, .08); padding: 28px 34px; display: flex; flex-direction: column; transition: border-color .25s, transform .25s; }
 .flashcard.revealed { border-color: #a6c0a7; }.card-topline { display: flex; justify-content: space-between; color: #9aab97; letter-spacing: .14em; font-size: 11px; font-weight: 800; }
@@ -388,6 +403,6 @@ button { cursor: pointer; font: inherit; }
 .rating-note { color: #667b6b; line-height: 1.5; }
 button:focus-visible { outline: 3px solid #d6a24d; outline-offset: 3px; }
 @keyframes reveal-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-@media (max-width: 640px) { .study-page { padding: 14px 14px 60px; }.study-header { align-items: flex-start; flex-direction: column; gap: 4px; }.intro { align-items: start; flex-direction: column; gap: 6px; padding: 18px 0; }.study-subtitle { font-size: 13px; }.metrics { margin-top: 22px; }.metric { padding: 16px 10px; text-align: center; }.flashcard { min-height: 270px; padding: 20px 18px; }.rating-grid { grid-template-columns: repeat(2, 1fr); }.meaning { font-size: 21px; }.word-content h2 { margin: 20px 0; }.session-meta { font-size: 12px; }.complete-actions { flex-direction:column; align-items:stretch; }.complete-actions button { width:100%; } }
+@media (max-width: 640px) { .study-page { padding: 14px 14px 60px; }.study-header { align-items: flex-start; flex-direction: column; gap: 4px; }.intro { align-items: start; flex-direction: column; gap: 6px; padding: 18px 0; }.study-subtitle { font-size: 13px; }.metrics { margin-top: 22px; }.metric { padding: 16px 10px; text-align: center; }.flashcard { min-height: 270px; padding: 20px 18px; }.rating-grid { grid-template-columns: repeat(2, 1fr); }.meaning { font-size: 21px; }.word-content h2 { margin: 20px 0; }.session-meta { align-items:flex-start; gap:10px; font-size: 12px; }.session-counts { max-width:75%; line-height:1.5; }.complete-actions { flex-direction:column; align-items:stretch; }.complete-actions button { width:100%; } }
 @media (prefers-reduced-motion: reduce) { .answer { animation: none; }.reveal-button, .primary-button, .text-button, .audio-button, .rating-button { transition: none; }.reveal-button:hover, .primary-button:hover, .text-button:hover, .rating-button:hover, .reveal-button:active, .primary-button:active, .text-button:active, .rating-button:active { transform: none; } }
 </style>

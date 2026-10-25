@@ -21,7 +21,7 @@
           </div>
           <h1 id="book-title">{{ bookName }}</h1>
           <p class="hero-description">
-            {{ studyEnabled ? '已加入每日学习计划。先完成到期复习，再认识新单词。' : '将这本词书加入计划，每天循序渐进地学习。' }}
+            {{ studyEnabled ? '已加入每日学习计划。先完成到期复习，再认识新单词。' : learnedCount > 0 ? '本书独有单词已暂停计划复习，学习记录仍会保留。' : '将这本词书加入计划，每天循序渐进地学习。' }}
           </p>
           <div class="hero-stats" aria-label="词书学习数据">
             <div><strong>{{ totalWordCount }}</strong><span>收录单词</span></div>
@@ -270,7 +270,7 @@ async function togglePlan() {
     const response = await setStudyBookEnabled(bookId.value, nextEnabled)
     if (response.code !== 0) throw new Error(response.msg || '更新学习计划失败')
     studyEnabled.value = nextEnabled
-    ElMessage.success(nextEnabled ? '已加入学习计划' : '已移出学习计划')
+    ElMessage.success(nextEnabled ? '已加入学习计划' : '已移出学习计划，历史记录保留')
   } catch (error: any) {
     ElMessage.error(error?.msg || error?.message || '更新学习计划失败')
   } finally {

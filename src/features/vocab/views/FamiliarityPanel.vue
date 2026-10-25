@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { getStudyFamiliarity, getWordBooks } from '@/features/vocab/api'
+import { getStudyFamiliarity, getStudySettings, getWordBooks } from '@/features/vocab/api'
 import type { FamiliarityStage, StudyFamiliarity, StudyFamiliarityWord, WordBookVo } from '@/features/vocab/types'
 
 const books = ref<WordBookVo[]>([])
@@ -10,6 +10,7 @@ const page = ref(1)
 const data = ref<StudyFamiliarity | null>(null)
 const loading = ref(true)
 const error = ref('')
+const timeZone = ref(Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai')
 let latestRequest = 0
 
 const segments = computed(() => [
@@ -26,7 +27,9 @@ function stageLabel(value: StudyFamiliarityWord['stage']) {
 
 function dueLabel(value: string) {
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric' }).format(date)
+  return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('zh-CN', {
+    timeZone: timeZone.value, month: 'long', day: 'numeric'
+  }).format(date)
 }
 
 async function load() {
@@ -64,6 +67,7 @@ function goToPage(value: number) {
 onMounted(() => {
   void load()
   void getWordBooks().then(response => { books.value = response.data ?? [] }).catch(() => {})
+  void getStudySettings().then(response => { timeZone.value = response.data.timeZone }).catch(() => {})
 })
 </script>
 
@@ -73,7 +77,7 @@ onMounted(() => {
       <div>
         <span class="eyebrow">MEMORY MAP / 记忆地图</span>
         <h2 id="familiarity-title">这些词，记得怎么样？</h2>
-        <p>按记忆阶段查看已学单词；待复习可出现在任一阶段。词书筛选只作用于本区。</p>
+        <p>按记忆阶段查看已学单词；移出计划的词仍保留记录，但暂停复习。词书筛选只作用于本区。</p>
       </div>
       <label class="book-filter" title="仅筛选记忆地图，下面的每日记录仍汇总全部词书">词书
         <select :value="bookId" aria-label="筛选词书" @change="selectBook">
@@ -118,7 +122,7 @@ onMounted(() => {
           <ul v-else class="word-list">
             <li v-for="word in data.words" :key="word.wordId">
               <div class="word-main"><strong>{{ word.word }}</strong><span>{{ word.meaning }}</span></div>
-              <div class="word-meta"><span :class="['stage-tag', word.stage.toLowerCase()]">{{ stageLabel(word.stage) }}</span><span v-if="word.due" class="due-tag">待复习</span><span v-else>下次 {{ dueLabel(word.dueAt) }}</span></div>
+              <div class="word-meta"><span :class="['stage-tag', word.stage.toLowerCase()]">{{ stageLabel(word.stage) }}</span><span v-if="!word.inStudyPlan" class="paused-tag">已暂停</span><span v-else-if="word.due" class="due-tag">待复习</span><span v-else>下次 {{ dueLabel(word.dueAt) }}</span></div>
             </li>
           </ul>
           <div v-if="totalPages > 1" class="pager"><button type="button" :disabled="page <= 1 || loading" @click="goToPage(page - 1)">上一页</button><span>{{ page }} / {{ totalPages }}</span><button type="button" :disabled="page >= totalPages || loading" @click="goToPage(page + 1)">下一页</button></div>
@@ -129,9 +133,10 @@ onMounted(() => {
           <p class="attention-intro">最近忘记过，或在正式复习中多次遗忘的词。</p>
           <p v-if="data.attentionWords.length === 0" class="attention-empty">目前没有反复遗忘的词，保持现在的复习节奏。</p>
           <ol v-else>
-            <li v-for="word in data.attentionWords" :key="word.wordId"><div><strong>{{ word.word }}</strong><span>{{ word.meaning }}</span></div><small>{{ word.lastRating === 1 ? '上次忘记' : `已遗忘 ${word.lapseCount} 次` }}{{ word.due ? ' · 待复习' : '' }}</small></li>
+            <li v-for="word in data.attentionWords" :key="word.wordId"><div><strong>{{ word.word }}</strong><span>{{ word.meaning }}</span></div><small>{{ word.lastRating === 1 ? '上次忘记' : `已遗忘 ${word.lapseCount} 次` }}{{ !word.inStudyPlan ? ' · 已暂停' : word.due ? ' · 待复习' : '' }}</small></li>
           </ol>
-          <router-link class="attention-link" to="/english/vocab/study">按计划复习 ↗</router-link>
+          <router-link v-if="data.attentionWords.some(word => word.inStudyPlan)" class="attention-link" to="/english/vocab/study">按计划复习 ↗</router-link>
+          <router-link v-else-if="data.attentionWords.length" class="attention-link" to="/english/vocab">管理学习计划 ↗</router-link>
         </section>
       </div>
     </template>
@@ -173,6 +178,7 @@ onMounted(() => {
 .word-list,.attention-panel ol { margin:0; padding:0; list-style:none; }.word-list li { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:66px; border-top:1px solid var(--xl-border); }
 .word-main,.attention-panel li div { display:flex; flex-direction:column; min-width:0; gap:3px; }.word-main strong,.attention-panel li strong { font:650 17px var(--xl-font-display); }.word-main span,.attention-panel li span { overflow:hidden; color:var(--xl-ink-soft); font-size:12px; text-overflow:ellipsis; white-space:nowrap; }
 .word-meta { display:flex; align-items:center; justify-content:end; gap:8px; flex-wrap:wrap; color:var(--xl-ink-soft); font-size:11px; white-space:nowrap; }.stage-tag,.due-tag { padding:4px 7px; border-radius:6px; font-weight:750; }.stage-tag.learning { background:#faefdf; color:#8a5a29; }.stage-tag.consolidating { background:#e7f1f4; color:#416b79; }.stage-tag.stable { background:#e6f1e5; color:#3f7450; }.due-tag { background:#fae9e2; color:#ac5a3b; }
+.paused-tag { padding:4px 7px; border-radius:6px; background:#edf0ea; color:#667969; font-weight:750; }
 .empty-note,.attention-empty { padding:20px 0; color:var(--xl-ink-soft); font-size:13px; line-height:1.6; }.pager { display:flex; align-items:center; justify-content:end; gap:14px; padding-top:16px; border-top:1px solid var(--xl-border); color:var(--xl-ink-soft); font-size:12px; }.pager button { min-height:32px; padding:0 10px; border:1px solid var(--xl-border); border-radius:7px; background:var(--xl-surface); color:var(--xl-brand); cursor:pointer; }.pager button:disabled { opacity:.45; cursor:default; }
 .attention-panel { background:#f9faf5; }.attention-intro { margin:9px 0 15px; }.attention-panel li { display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:64px; border-top:1px solid var(--xl-border); }.attention-panel li small { color:#a36140; font-size:11px; white-space:nowrap; }.attention-link { display:inline-flex; margin-top:14px; color:var(--xl-brand); font-size:13px; font-weight:800; text-decoration:none; }
 @media (max-width:900px) { .memory-overview { grid-template-columns:130px minmax(0,1fr); }.due-callout { grid-column:1/-1; flex-direction:row; align-items:baseline; gap:10px; padding:15px 20px; border-top:1px solid #dce6d8; border-left:0; }.due-callout strong { font-size:25px; }.detail-grid { grid-template-columns:1fr; } }
