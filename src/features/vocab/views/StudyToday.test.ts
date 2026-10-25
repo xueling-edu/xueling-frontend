@@ -77,6 +77,55 @@ describe('today study review recovery', () => {
     wrapper.unmount()
   })
 
+  it('lays out escaped multiline meanings as separate parts of speech', async () => {
+    api.getTodayStudy.mockResolvedValueOnce({ code: 0, data: {
+      dueCount: 1, newRemaining: 0, todayReviewed: 0, todayNew: 0,
+      cards: [{ ...card, word: 'toward', meaning: 'prep. 向, 对于, 为了\\na. 即将来临的, 进行中的' }]
+    } })
+    const wrapper = mountStudy()
+    await flushPromises()
+    expect(wrapper.find('.definition-row').exists()).toBe(false)
+
+    await wrapper.find('.reveal-button').trigger('click')
+    const rows = wrapper.findAll('.definition-row')
+    expect(rows).toHaveLength(2)
+    expect(rows.map(row => row.find('.part-of-speech').text())).toEqual(['prep.', 'a.'])
+    expect(rows.map(row => row.find('.meaning').text())).toEqual(['向，对于，为了', '即将来临的，进行中的'])
+    expect(wrapper.find('.definition-toggle').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('previews a long definition and reveals every entry on request', async () => {
+    const longMeaning = '用于说明复杂情况下仍然需要完整展示的中文释义'.repeat(3)
+    api.getTodayStudy.mockResolvedValueOnce({ code: 0, data: {
+      dueCount: 1, newRemaining: 0, todayReviewed: 0, todayNew: 0,
+      cards: [{ ...card, meaning: `n. ${longMeaning}\\nvt. 第二条释义\\nadj. 第三条释义` }]
+    } }).mockResolvedValueOnce({ code: 0, data: {
+      dueCount: 1, newRemaining: 0, todayReviewed: 1, todayNew: 0,
+      cards: [{ ...card, wordId: '456', version: 1, meaning: `n. ${longMeaning}\\nvt. 第二条释义\\nadj. 第三条释义` }]
+    } })
+    api.submitStudyReview.mockResolvedValue({ code: 0, data: { wordId: '123', version: 1 } })
+    const wrapper = mountStudy()
+    await flushPromises()
+    await wrapper.find('.reveal-button').trigger('click')
+
+    expect(wrapper.findAll('.definition-row')).toHaveLength(2)
+    expect(wrapper.find('.definition-row .meaning').text().endsWith('…')).toBe(true)
+    await wrapper.find('.definition-toggle').trigger('click')
+    expect(wrapper.findAll('.definition-row')).toHaveLength(3)
+    expect(wrapper.find('.definition-row .meaning').text()).toBe(longMeaning)
+    expect(wrapper.find('.definition-toggle').attributes('aria-expanded')).toBe('true')
+    await wrapper.find('.definition-toggle').trigger('click')
+    expect(wrapper.findAll('.definition-row')).toHaveLength(2)
+    await wrapper.find('.definition-toggle').trigger('click')
+    await wrapper.findAll('.rating-button')[2]!.trigger('click')
+    await flushPromises()
+    await wrapper.find('.reveal-button').trigger('click')
+    expect(wrapper.findAll('.definition-row')).toHaveLength(2)
+    expect(wrapper.find('.definition-toggle').attributes('aria-expanded')).toBe('false')
+    wrapper.unmount()
+  })
+
   it('replays the same rating after refresh and then reloads server progress', async () => {
     api.submitStudyReview.mockRejectedValueOnce(new Error('network interrupted'))
       .mockResolvedValueOnce({ code: 0, data: { wordId: '123', version: 1 } })

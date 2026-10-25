@@ -39,25 +39,45 @@
           <span class="pill">{{ currentCard.newCard ? '新词' : '到期复习' }}</span>
           <span class="session-counts">今日已完成 {{ today!.todayReviewed }} 次 <i aria-hidden="true">·</i> 待复习 {{ today!.dueCount }} <i aria-hidden="true">·</i> 新词额度 {{ today!.newRemaining }}</span>
         </div>
-        <div class="flashcard" :class="{ revealed }">
-          <p class="card-guidance">{{ revealed ? '对照刚才在心里给出的答案' : '只看英文，先独立想出中文释义' }}</p>
-          <div class="word-content">
-            <h2>{{ currentCard.word }}</h2>
-          </div>
-          <div v-if="revealed" class="answer">
-            <span class="answer-label">中文释义</span>
-            <p class="meaning">{{ currentCard.meaning }}</p>
-            <div class="answer-tools">
-              <span v-if="currentCard.phonetic" class="phonetic">/{{ currentCard.phonetic }}/</span>
-              <button class="audio-button" type="button" :aria-label="'播放 ' + currentCard.word + ' 的读音'" @click="playAudio(currentCard.word)">♫ 听发音</button>
-            </div>
-            <details v-if="currentCard.example" class="example-disclosure">
-              <summary>查看例句与译文</summary>
-              <div class="example">
-                <p>{{ currentCard.example }}</p>
-                <p v-if="currentCard.exampleTranslation">{{ currentCard.exampleTranslation }}</p>
+        <div :key="`${currentCard.wordId}-${currentCard.version}`" class="flashcard" :class="{ revealed }">
+          <div class="card-inner">
+            <div class="card-face card-front" :aria-hidden="revealed">
+              <div class="face-top"><span>回忆</span><span>01 / 02</span></div>
+              <div class="front-focus">
+                <h2>{{ currentCard.word }}</h2>
+                <span class="front-rule" aria-hidden="true"></span>
+                <p>在心里说出它的中文释义</p>
               </div>
-            </details>
+            </div>
+            <div v-if="revealed" class="card-face card-back" :aria-hidden="!revealed">
+              <div class="face-top"><span>答案</span><span>02 / 02</span></div>
+              <div class="back-content">
+                <h2>{{ currentCard.word }}</h2>
+                <div class="answer-tools">
+                  <span v-if="currentCard.phonetic" class="phonetic">/{{ currentCard.phonetic }}/</span>
+                  <button class="audio-button" type="button" :aria-label="'播放 ' + currentCard.word + ' 的读音'" @click="playAudio(currentCard.word)">♫ 听发音</button>
+                </div>
+                <div class="definition-section">
+                  <span class="answer-label">中文释义</span>
+                  <div id="study-definition-list" class="definition-list">
+                    <div v-for="(entry, index) in displayedMeaningEntries" :key="index" class="definition-row" :class="{ 'without-pos': !entry.pos }">
+                      <span v-if="entry.pos" class="part-of-speech">{{ entry.pos }}</span>
+                      <p class="meaning">{{ entry.text }}</p>
+                    </div>
+                  </div>
+                  <button v-if="hasMoreMeaning" class="definition-toggle" type="button" aria-controls="study-definition-list" :aria-expanded="expandedMeaning" @click="expandedMeaning = !expandedMeaning">
+                    {{ expandedMeaning ? '收起释义' : '展开完整释义' }} <span aria-hidden="true">{{ expandedMeaning ? '↑' : '↓' }}</span>
+                  </button>
+                </div>
+                <details v-if="currentCard.example" class="example-disclosure">
+                  <summary>查看例句与译文</summary>
+                  <div class="example">
+                    <p>{{ currentCard.example }}</p>
+                    <p v-if="currentCard.exampleTranslation">{{ currentCard.exampleTranslation }}</p>
+                  </div>
+                </details>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -151,6 +171,7 @@ const planState = ref<'unknown' | 'none' | 'ready'>('unknown')
 const loading = ref(true)
 const loadError = ref('')
 const revealed = ref(false)
+const expandedMeaning = ref(false)
 const saving = ref(false)
 const saveError = ref('')
 const canRefreshAfterError = ref(false)
@@ -166,6 +187,40 @@ const retentionPercent = computed({
   set: value => { if (settingsDraft.value) settingsDraft.value.desiredRetention = value / 100 }
 })
 const currentCard = computed<StudyQueueCard | null>(() => today.value?.cards[0] ?? null)
+const meaningEntries = computed(() => {
+  const entries: { pos: string; text: string }[] = []
+  const lines = (currentCard.value?.meaning ?? '').replace(/\\n/g, '\n').split(/\r?\n/)
+  const clean = (text: string) => text.trim().replace(/^[；;,\s]+|[；;,\s]+$/g, '').replace(/,\s*(?=[\u3400-\u9fff])/g, '，')
+
+  for (const line of lines) {
+    const markers = [...line.matchAll(/\b(n|v|vt|vi|adj|adv|prep|conj|pron|int|interj|num|art|aux|pl|abbr|a|ad)\.\s*/gi)]
+    if (!markers.length) {
+      const text = clean(line)
+      if (text) entries.push({ pos: '', text })
+      continue
+    }
+    const prefix = clean(line.slice(0, markers[0]!.index ?? 0))
+    if (prefix) entries.push({ pos: '', text: prefix })
+    markers.forEach((marker, index) => {
+      const text = clean(line.slice((marker.index ?? 0) + marker[0].length, markers[index + 1]?.index ?? line.length))
+      if (text) entries.push({ pos: `${marker[1]!.toLowerCase()}.`, text })
+    })
+  }
+  return entries
+})
+const MAX_PREVIEW_ROWS = 2
+const MAX_PREVIEW_CHARACTERS = 46
+const hasMoreMeaning = computed(() => meaningEntries.value.length > MAX_PREVIEW_ROWS
+  || meaningEntries.value.some(entry => entry.text.length > MAX_PREVIEW_CHARACTERS))
+const displayedMeaningEntries = computed(() => {
+  if (!hasMoreMeaning.value || expandedMeaning.value) return meaningEntries.value
+  return meaningEntries.value.slice(0, MAX_PREVIEW_ROWS).map(entry => ({
+    ...entry,
+    text: entry.text.length > MAX_PREVIEW_CHARACTERS
+      ? `${entry.text.slice(0, MAX_PREVIEW_CHARACTERS).trimEnd()}…`
+      : entry.text
+  }))
+})
 const dateLabel = computed(() => new Intl.DateTimeFormat('zh-CN', {
   timeZone: timeZone.value, month: 'long', day: 'numeric', weekday: 'long'
 }).format(new Date()))
@@ -194,6 +249,7 @@ async function loadToday() {
       planState.value = 'ready'
     }
     revealed.value = false
+    expandedMeaning.value = false
     shownAt.value = Date.now()
   } catch (error: any) {
     loadError.value = error?.msg || '请检查网络后重试。'
@@ -402,7 +458,114 @@ button { cursor: pointer; font: inherit; }
 .rating-button span { color: #607466; }
 .rating-note { color: #667b6b; line-height: 1.5; }
 button:focus-visible { outline: 3px solid #d6a24d; outline-offset: 3px; }
-@keyframes reveal-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-@media (max-width: 640px) { .study-page { padding: 14px 14px 60px; }.study-header { align-items: flex-start; flex-direction: column; gap: 4px; }.intro { align-items: start; flex-direction: column; gap: 6px; padding: 18px 0; }.study-subtitle { font-size: 13px; }.metrics { margin-top: 22px; }.metric { padding: 16px 10px; text-align: center; }.flashcard { min-height: 270px; padding: 20px 18px; }.rating-grid { grid-template-columns: repeat(2, 1fr); }.meaning { font-size: 21px; }.word-content h2 { margin: 20px 0; }.session-meta { align-items:flex-start; gap:10px; font-size: 12px; }.session-counts { max-width:75%; line-height:1.5; }.complete-actions { flex-direction:column; align-items:stretch; }.complete-actions button { width:100%; } }
-@media (prefers-reduced-motion: reduce) { .answer { animation: none; }.reveal-button, .primary-button, .text-button, .audio-button, .rating-button { transition: none; }.reveal-button:hover, .primary-button:hover, .text-button:hover, .rating-button:hover, .reveal-button:active, .primary-button:active, .text-button:active, .rating-button:active { transform: none; } }
+
+/* 双面共用网格高度，长释义与展开的例句由页面自然承载。 */
+.flashcard, .flashcard.revealed {
+  display: block;
+  min-height: 390px;
+  padding: 0;
+  border: 0;
+  border-radius: 22px;
+  background: transparent;
+  box-shadow: none;
+  perspective: 1200px;
+}
+.card-inner {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  transform-style: preserve-3d;
+  transition: transform .62s cubic-bezier(.2, .7, .2, 1);
+}
+.flashcard.revealed .card-inner { transform: rotateY(180deg); }
+.card-face {
+  position: relative;
+  grid-area: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 390px;
+  padding: 30px 36px;
+  border: 1px solid #d8e2d3;
+  border-radius: 22px;
+  background: #fffef9;
+  box-shadow: 0 18px 42px #29463116;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.card-front { background: radial-gradient(circle at 50% 36%, #f5f8ef, #fffef9 66%); }
+.card-back { transform: rotateY(180deg); border-color: #c9d9c8; background: #f9fbf6; }
+.face-top { display: flex; justify-content: space-between; align-items: center; color: #6e886e; font-size: 12px; font-weight: 700; letter-spacing: .08em; }
+.face-top span:last-child { color: #9aab99; font: 600 13px Georgia, serif; letter-spacing: .06em; }
+.front-focus { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; min-height: 0; text-align: center; }
+.front-focus h2 { max-width: 100%; margin: 0; color: #234a34; font: 500 clamp(46px, 8vw, 78px)/1.12 Georgia, 'Times New Roman', serif; letter-spacing: -.045em; overflow-wrap: anywhere; }
+.front-rule { width: 48px; height: 2px; margin: 24px 0 15px; border-radius: 2px; background: #aac4a9; }
+.front-focus p { margin: 0; color: #7e9180; font-size: 13px; }
+.back-content { display: flex; flex: 1 0 auto; flex-direction: column; padding: 28px 8px 4px 0; }
+.back-content h2 { margin: 0 0 9px; color: #27503a; font: 500 clamp(30px, 4.4vw, 44px)/1.15 Georgia, 'Times New Roman', serif; letter-spacing: -.035em; overflow-wrap: anywhere; }
+.answer-tools { justify-content: flex-start; gap: 12px; }
+.definition-section { margin: auto 0; padding: 23px 0; }
+.answer-label { display: block; margin-bottom: 10px; padding: 0; border: 0; color: #789078; font-size: 11px; font-weight: 750; letter-spacing: .12em; }
+.definition-list { border-top: 1px solid #dfe8dc; }
+.definition-row { display: grid; grid-template-columns: 66px minmax(0, 1fr); align-items: start; gap: 18px; padding: 15px 0; border-bottom: 1px solid #e5ece2; }
+.definition-row.without-pos { grid-template-columns: minmax(0, 1fr); }
+.part-of-speech { width: fit-content; margin-top: 3px; padding: 4px 8px; border-radius: 5px; background: #e9f0e7; color: #4c7354; font: 700 12px/1.2 Georgia, serif; white-space: nowrap; }
+.meaning { margin: 0; color: #293f30; font-size: clamp(19px, 2.5vw, 23px); font-weight: 500; line-height: 1.55; white-space: normal; overflow-wrap: anywhere; }
+.definition-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; margin-top: 8px; padding: 2px 0; border: 0; background: transparent; color: #315b40; font-size: 12px; font-weight: 750; }
+.definition-toggle:hover { text-decoration: underline; }
+.definition-toggle span { font-size: 15px; font-weight: 400; }
+.phonetic { color: #647b69; }
+.example-disclosure { margin-top: 0; }
+.example-disclosure summary { margin: 0; }
+.study-actions { padding: 22px 0 8px; }
+.reveal-button { min-width: 260px; }
+.rate-prompt { margin-bottom: 12px; font-size: 15px; }
+.rating-grid { gap: 10px; }
+.rating-button, .rating-button.again, .rating-button.hard, .rating-button.good, .rating-button.easy {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  align-content: center;
+  column-gap: 8px;
+  row-gap: 2px;
+  min-height: 77px;
+  padding: 11px 12px;
+  border: 1px solid #d8e1d4;
+  border-left: 3px solid var(--rating-accent);
+  border-radius: 11px;
+  background: #fffef9;
+  box-shadow: 0 2px 0 #e6ece3;
+}
+.rating-button.again { --rating-accent: #bb806b; }
+.rating-button.hard { --rating-accent: #c3a16a; }
+.rating-button.good { --rating-accent: #83a785; }
+.rating-button.easy { --rating-accent: #477e5d; }
+.rating-button kbd { grid-row: span 2; align-self: center; margin: 0; text-align: center; }
+.rating-button strong { font-size: 15px; line-height: 1.3; }
+.rating-button span { font-size: 11px; line-height: 1.4; }
+.rating-button:hover:not(:disabled) { background: #f6f9f3; }
+@media (max-width: 640px) {
+  .study-page { padding: 14px 14px 60px; }
+  .study-header { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .intro { align-items: start; flex-direction: column; gap: 6px; padding: 18px 0; }
+  .study-subtitle { font-size: 13px; }
+  .metrics { margin-top: 22px; }
+  .metric { padding: 16px 10px; text-align: center; }
+  .session-meta { align-items: flex-start; gap: 10px; font-size: 12px; }
+  .session-counts { max-width: 75%; line-height: 1.5; }
+  .flashcard, .flashcard.revealed, .card-face { min-height: 365px; }
+  .card-face { padding: 22px; border-radius: 18px; }
+  .front-focus h2 { font-size: clamp(40px, 10vw, 60px); }
+  .back-content { padding-top: 22px; }
+  .definition-section { padding: 18px 0; }
+  .definition-row { grid-template-columns: 55px minmax(0, 1fr); gap: 10px; padding: 12px 0; }
+  .meaning { font-size: 19px; }
+  .rating-grid { grid-template-columns: repeat(2, 1fr); gap: 9px; }
+  .complete-actions { flex-direction: column; align-items: stretch; }
+  .complete-actions button { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-inner, .reveal-button, .primary-button, .text-button, .audio-button, .rating-button { transition: none; }
+  .reveal-button:hover, .primary-button:hover, .text-button:hover, .rating-button:hover,
+  .reveal-button:active, .primary-button:active, .text-button:active, .rating-button:active { transform: none; }
+}
 </style>
