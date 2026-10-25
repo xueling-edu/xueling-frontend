@@ -28,7 +28,7 @@
           <button v-if="canRefreshAfterError" class="text-button" type="button" :disabled="saving" @click="refreshAfterConflict">同步最新学习计划</button>
         </div>
       </section>
-      <div v-else-if="loadError" class="state-panel">
+      <div v-else-if="loadError && !followup" class="state-panel">
         <h2>暂时无法读取学习计划</h2>
         <p>{{ loadError }}</p>
         <button class="primary-button" type="button" @click="loadToday">重新加载</button>
@@ -37,19 +37,20 @@
       <section v-else-if="currentCard" class="session" aria-label="学习卡片" aria-live="polite">
         <div class="session-meta">
           <span class="pill">{{ currentCard.newCard ? '新词' : '到期复习' }}</span>
-          <span class="session-counts">今日已完成 {{ today!.todayReviewed }} 次 <i aria-hidden="true">·</i> 待复习 {{ today!.dueCount }} <i aria-hidden="true">·</i> 新词额度 {{ today!.newRemaining }}</span>
+          <span v-if="followup" class="session-counts">评分已保存 · 完成当前词的巩固后继续</span>
+          <span v-else class="session-counts">今日已完成 {{ today!.todayReviewed }} 次 <i aria-hidden="true">·</i> 待复习 {{ today!.dueCount }} <i aria-hidden="true">·</i> 新词额度 {{ today!.newRemaining }}</span>
         </div>
-        <div :key="`${currentCard.wordId}-${currentCard.version}`" class="flashcard" :class="{ revealed }">
+        <div :key="`${currentCard.wordId}-${currentCard.version}`" class="flashcard" :class="{ revealed: cardRevealed }">
           <div class="card-inner">
-            <div class="card-face card-front" :aria-hidden="revealed">
-              <div class="face-top"><span>回忆</span><span>01 / 02</span></div>
+            <div class="card-face card-front" :aria-hidden="cardRevealed">
+              <div class="face-top"><span>{{ followup?.step === 'recall' ? '再回忆一次' : '回忆' }}</span><span>01 / 02</span></div>
               <div class="front-focus">
                 <h2>{{ currentCard.word }}</h2>
                 <span class="front-rule" aria-hidden="true"></span>
                 <p>在心里说出它的中文释义</p>
               </div>
             </div>
-            <div v-if="revealed" class="card-face card-back" :aria-hidden="!revealed">
+            <div v-if="cardRevealed" class="card-face card-back" :aria-hidden="!cardRevealed">
               <div class="face-top"><span>答案</span><span>02 / 02</span></div>
               <div class="back-content">
                 <h2>{{ currentCard.word }}</h2>
@@ -69,7 +70,14 @@
                     {{ expandedMeaning ? '收起释义' : '展开完整释义' }} <span aria-hidden="true">{{ expandedMeaning ? '↑' : '↓' }}</span>
                   </button>
                 </div>
-                <details v-if="currentCard.example" class="example-disclosure">
+                <div v-if="followup && currentCard.example" class="example-disclosure followup-example">
+                  <span>例句与译文</span>
+                  <div class="example">
+                    <p>{{ currentCard.example }}</p>
+                    <p v-if="currentCard.exampleTranslation">{{ currentCard.exampleTranslation }}</p>
+                  </div>
+                </div>
+                <details v-else-if="currentCard.example" class="example-disclosure">
                   <summary>查看例句与译文</summary>
                   <div class="example">
                     <p>{{ currentCard.example }}</p>
@@ -82,7 +90,33 @@
         </div>
 
         <div class="study-actions">
-          <button v-if="!revealed" class="reveal-button" type="button" @click="reveal">已回忆，查看答案 <span aria-hidden="true">↗</span></button>
+          <div v-if="followup" class="followup-flow" aria-live="polite">
+            <span class="followup-label">{{ followup.rating === 1 ? '忘记了 · 重新学习' : followup.rating === 2 ? '很困难 · 加深记忆' : '记得 · 语境巩固' }}</span>
+            <template v-if="followup.step === 'study'">
+              <p v-if="followup.rating === 1">先看清核心释义，确认刚才没有想起的意思。</p>
+              <p v-else-if="followup.rating === 2">留意刚才费力才想起的释义{{ currentCard.example ? '，再结合例句确认用法' : '' }}。</p>
+              <p v-else>读一遍释义{{ currentCard.example ? '和例句' : '' }}，确认这个词在语境中的意思。</p>
+              <button v-if="followup.rating === 1" class="primary-button" type="button" @click="setFollowupStep('context')">{{ currentCard.example ? '下一步：听读与例句' : '下一步：听读练习' }}</button>
+              <button v-else-if="followup.rating === 2" class="primary-button" type="button" @click="setFollowupStep('recall')">遮住答案，再回忆一次</button>
+              <button v-else class="primary-button" type="button" @click="finishFollowup">下一个词</button>
+            </template>
+            <template v-else-if="followup.step === 'context'">
+              <p>听发音，跟读这个词{{ currentCard.example ? '，再读一遍例句和译文' : '，再说一遍它的意思' }}。</p>
+              <div class="followup-actions">
+                <button class="text-button" type="button" @click="playAudio(currentCard.word)">♫ 听发音</button>
+                <button class="primary-button" type="button" @click="setFollowupStep('recall')">遮住答案，再回忆一次</button>
+              </div>
+            </template>
+            <template v-else-if="followup.step === 'recall'">
+              <p>只看英文，在心里说出刚才的核心释义。</p>
+              <button class="primary-button" type="button" @click="setFollowupStep('checked')">想好了，核对答案</button>
+            </template>
+            <template v-else>
+              <p>核对完成。这次评分仍按第一次揭晓前的回忆记录，后续会按计划再复习。</p>
+              <button class="primary-button" type="button" @click="finishFollowup">下一个词</button>
+            </template>
+          </div>
+          <button v-else-if="!revealed" class="reveal-button" type="button" @click="reveal">已回忆，查看答案 <span aria-hidden="true">↗</span></button>
           <template v-else>
             <p class="rate-prompt">{{ saving ? '正在保存本次评分…' : '揭晓前，你回忆得怎么样？' }}</p>
             <div class="rating-grid">
@@ -93,7 +127,7 @@
             </div>
             <p class="rating-note">按揭晓前的回忆评分 · 键盘 1–4</p>
           </template>
-          <p v-if="!revealed && currentCard.newCard" class="shortcut-note">新词可以直接揭晓。</p>
+          <p v-if="!followup && !revealed && currentCard.newCard" class="shortcut-note">新词可以直接揭晓。</p>
         </div>
       </section>
 
@@ -160,6 +194,8 @@ import { ElMessage } from 'element-plus'
 import { getStudySettings, getTodayStudy, getWordBooks, submitStudyReview, updateStudySettings } from '@/features/vocab/api'
 import type { StudyQueueCard, StudySettings, SubmitStudyReview, TodayStudy } from '@/features/vocab/types'
 import { clearPendingReview, persistPendingReview, restorePendingReview } from '@/features/vocab/pendingReview'
+import { clearFollowup, persistFollowup, restoreFollowup } from '@/features/vocab/followupStudy'
+import type { FollowupStudy } from '@/features/vocab/followupStudy'
 import { createReviewRequestId } from '@/features/vocab/requestId'
 import { useUserStore } from '@/stores/user'
 import PageBreadcrumb from '@/components/PageBreadcrumb.vue'
@@ -176,6 +212,7 @@ const saving = ref(false)
 const saveError = ref('')
 const canRefreshAfterError = ref(false)
 const pendingReview = ref<SubmitStudyReview | null>(null)
+const followup = ref<FollowupStudy | null>(null)
 const shownAt = ref(Date.now())
 const settingsOpen = ref(false)
 const savingSettings = ref(false)
@@ -186,7 +223,8 @@ const retentionPercent = computed({
   get: () => Math.round((settingsDraft.value?.desiredRetention ?? 0.9) * 100),
   set: value => { if (settingsDraft.value) settingsDraft.value.desiredRetention = value / 100 }
 })
-const currentCard = computed<StudyQueueCard | null>(() => today.value?.cards[0] ?? null)
+const currentCard = computed<StudyQueueCard | null>(() => followup.value?.card ?? today.value?.cards[0] ?? null)
+const cardRevealed = computed(() => followup.value ? followup.value.step !== 'recall' : revealed.value)
 const meaningEntries = computed(() => {
   const entries: { pos: string; text: string }[] = []
   const lines = (currentCard.value?.meaning ?? '').replace(/\\n/g, '\n').split(/\r?\n/)
@@ -261,7 +299,7 @@ async function loadToday() {
 function reveal() { revealed.value = true }
 
 function handleKeydown(event: KeyboardEvent) {
-  if (event.altKey || event.ctrlKey || event.metaKey || settingsOpen.value || loading.value || pendingReview.value) return
+  if (event.altKey || event.ctrlKey || event.metaKey || settingsOpen.value || loading.value || pendingReview.value || followup.value) return
   const target = event.target
   if (target instanceof HTMLElement && (target.closest('button, input, textarea, select, [contenteditable="true"]'))) return
   if (!currentCard.value) return
@@ -292,6 +330,11 @@ function rate(rating: 1 | 2 | 3 | 4) {
     requestId: createReviewRequestId(),
     elapsedMs: Math.min(600_000, Date.now() - shownAt.value)
   }
+  if (rating !== 4) {
+    const nextFollowup: FollowupStudy = { requestId: review.requestId, rating, card: { ...currentCard.value }, step: 'study', confirmed: false }
+    followup.value = nextFollowup
+    persistFollowup(userStore.userInfo?.id, nextFollowup)
+  }
   pendingReview.value = review
   persistPendingReview(userStore.userInfo?.id, review)
   void sendReview(review)
@@ -304,11 +347,19 @@ async function sendReview(review: SubmitStudyReview) {
   canRefreshAfterError.value = false
   try {
     await submitStudyReview(review)
+    if (followup.value?.requestId === review.requestId) {
+      followup.value = { ...followup.value, confirmed: true }
+      persistFollowup(userStore.userInfo?.id, followup.value)
+    }
     clearPendingReview(userStore.userInfo?.id)
     pendingReview.value = null
     saveError.value = ''
     canRefreshAfterError.value = false
-    await loadToday()
+    if (review.rating === 4 || followup.value?.requestId !== review.requestId) {
+      clearFollowup(userStore.userInfo?.id)
+      followup.value = null
+      await loadToday()
+    }
   } catch (error: any) {
     saveError.value = error?.msg || '评分未确认保存，请使用同一个请求重试。'
     canRefreshAfterError.value = error?.code === 500 || error?.code === 501
@@ -319,9 +370,23 @@ async function sendReview(review: SubmitStudyReview) {
 
 function refreshAfterConflict() {
   clearPendingReview(userStore.userInfo?.id)
+  clearFollowup(userStore.userInfo?.id)
   pendingReview.value = null
+  followup.value = null
   saveError.value = ''
   canRefreshAfterError.value = false
+  void loadToday()
+}
+
+function setFollowupStep(step: FollowupStudy['step']) {
+  if (!followup.value) return
+  followup.value = { ...followup.value, step }
+  persistFollowup(userStore.userInfo?.id, followup.value)
+}
+
+function finishFollowup() {
+  clearFollowup(userStore.userInfo?.id)
+  followup.value = null
   void loadToday()
 }
 
@@ -358,7 +423,12 @@ function formatDue(value: string) {
 
 onMounted(async () => {
   window.addEventListener('keydown', handleKeydown)
+  followup.value = restoreFollowup(userStore.userInfo?.id)
   pendingReview.value = restorePendingReview(userStore.userInfo?.id)
+  if (followup.value && !followup.value.confirmed && !pendingReview.value) {
+    clearFollowup(userStore.userInfo?.id)
+    followup.value = null
+  }
   await loadToday()
   if (pendingReview.value) void sendReview(pendingReview.value)
   void getStudySettings().then(response => { timeZone.value = response.data.timeZone }).catch(() => {})
@@ -543,6 +613,13 @@ button:focus-visible { outline: 3px solid #d6a24d; outline-offset: 3px; }
 .rating-button strong { font-size: 15px; line-height: 1.3; }
 .rating-button span { font-size: 11px; line-height: 1.4; }
 .rating-button:hover:not(:disabled) { background: #f6f9f3; }
+.followup-flow { max-width: 620px; margin: 0 auto; padding: 18px 22px 20px; border: 1px solid #d7e2d2; border-radius: 16px; background: #f7faf4; text-align: left; }
+.followup-label { display: block; color: #356b48; font-size: 13px; font-weight: 800; }
+.followup-flow p { margin: 10px 0 17px; color: #526b58; font-size: 14px; line-height: 1.65; }
+.followup-flow .primary-button { width: 100%; }
+.followup-actions { display: flex; gap: 10px; }
+.followup-actions .primary-button { flex: 1; width: auto; }
+.followup-example > span { color: #607b63; font-size: 12px; font-weight: 750; }
 @media (max-width: 640px) {
   .study-page { padding: 14px 14px 60px; }
   .study-header { align-items: flex-start; flex-direction: column; gap: 4px; }
@@ -560,6 +637,8 @@ button:focus-visible { outline: 3px solid #d6a24d; outline-offset: 3px; }
   .definition-row { grid-template-columns: 55px minmax(0, 1fr); gap: 10px; padding: 12px 0; }
   .meaning { font-size: 19px; }
   .rating-grid { grid-template-columns: repeat(2, 1fr); gap: 9px; }
+  .followup-flow { padding: 16px; }
+  .followup-actions { flex-direction: column; }
   .complete-actions { flex-direction: column; align-items: stretch; }
   .complete-actions button { width: 100%; }
 }

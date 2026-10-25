@@ -120,6 +120,9 @@ describe('today study review recovery', () => {
     await wrapper.find('.definition-toggle').trigger('click')
     await wrapper.findAll('.rating-button')[2]!.trigger('click')
     await flushPromises()
+    expect(wrapper.find('.followup-flow').exists()).toBe(true)
+    await wrapper.find('.followup-flow .primary-button').trigger('click')
+    await flushPromises()
     await wrapper.find('.reveal-button').trigger('click')
     expect(wrapper.findAll('.definition-row')).toHaveLength(2)
     expect(wrapper.find('.definition-toggle').attributes('aria-expanded')).toBe('false')
@@ -147,8 +150,78 @@ describe('today study review recovery', () => {
     expect(api.submitStudyReview).toHaveBeenCalledTimes(2)
     expect(api.submitStudyReview.mock.calls[1]![0]).toEqual(original)
     expect(sessionStorage.getItem('study.pending-review.7')).toBeNull()
-    expect(api.getTodayStudy).toHaveBeenCalledTimes(3)
+    expect(api.getTodayStudy).toHaveBeenCalledTimes(2)
+    expect(second.find('.followup-flow').exists()).toBe(true)
     second.unmount()
+  })
+
+  it.each([1, 2] as const)('keeps rating %i on the word through a second recall', async rating => {
+    api.submitStudyReview.mockResolvedValue({ code: 0, data: { wordId: '123', version: 1 } })
+    const wrapper = mountStudy()
+    await flushPromises()
+    await wrapper.find('.reveal-button').trigger('click')
+    await wrapper.findAll('.rating-button')[rating - 1]!.trigger('click')
+    await flushPromises()
+
+    expect(api.submitStudyReview).toHaveBeenCalledTimes(1)
+    expect(api.submitStudyReview.mock.calls[0]![0].rating).toBe(rating)
+    expect(api.getTodayStudy).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('.meaning').exists()).toBe(true)
+    await wrapper.find('.followup-flow .primary-button').trigger('click')
+    if (rating === 1) {
+      expect(wrapper.find('.followup-flow').text()).toContain('听发音')
+      await wrapper.find('.followup-flow .primary-button').trigger('click')
+    }
+    expect(wrapper.find('.meaning').exists()).toBe(false)
+    await wrapper.find('.followup-flow .primary-button').trigger('click')
+    expect(wrapper.find('.meaning').exists()).toBe(true)
+    await wrapper.find('.followup-flow .primary-button').trigger('click')
+    await flushPromises()
+    expect(api.getTodayStudy).toHaveBeenCalledTimes(2)
+    wrapper.unmount()
+  })
+
+  it('moves on immediately after an easy rating', async () => {
+    api.submitStudyReview.mockResolvedValue({ code: 0, data: { wordId: '123', version: 1 } })
+    const wrapper = mountStudy()
+    await flushPromises()
+    await wrapper.find('.reveal-button').trigger('click')
+    await wrapper.findAll('.rating-button')[3]!.trigger('click')
+    await flushPromises()
+    expect(api.getTodayStudy).toHaveBeenCalledTimes(2)
+    expect(wrapper.find('.followup-flow').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('restores an unfinished follow-up after a refresh', async () => {
+    api.submitStudyReview.mockResolvedValue({ code: 0, data: { wordId: '123', version: 1 } })
+    const first = mountStudy()
+    await flushPromises()
+    await first.find('.reveal-button').trigger('click')
+    await first.findAll('.rating-button')[0]!.trigger('click')
+    await flushPromises()
+    await first.find('.followup-flow .primary-button').trigger('click')
+    await first.find('.followup-flow .primary-button').trigger('click')
+    first.unmount()
+
+    const second = mountStudy()
+    await flushPromises()
+    expect(second.find('.followup-flow').exists()).toBe(true)
+    expect(second.find('.meaning').exists()).toBe(false)
+    expect(api.submitStudyReview).toHaveBeenCalledTimes(1)
+    second.unmount()
+  })
+
+  it('does not treat an unconfirmed follow-up draft as a saved rating', async () => {
+    sessionStorage.setItem('study.followup.7', JSON.stringify({
+      requestId: 'draft', rating: 1, card, step: 'study', confirmed: false
+    }))
+    const wrapper = mountStudy()
+    await flushPromises()
+    expect(wrapper.find('.followup-flow').exists()).toBe(false)
+    expect(sessionStorage.getItem('study.followup.7')).toBeNull()
+    expect(wrapper.find('.reveal-button').exists()).toBe(true)
+    wrapper.unmount()
   })
 
   it('submits a rating on an HTTP LAN page without crypto.randomUUID', async () => {
@@ -181,6 +254,7 @@ describe('today study review recovery', () => {
     await refresh!.trigger('click')
     await flushPromises()
     expect(sessionStorage.getItem('study.pending-review.7')).toBeNull()
+    expect(sessionStorage.getItem('study.followup.7')).toBeNull()
     expect(api.getTodayStudy).toHaveBeenCalledTimes(2)
     wrapper.unmount()
   })
