@@ -55,7 +55,7 @@
           <div>
             <p class="eyebrow">EXPLORE THE WORDS</p>
             <h2 id="word-title">词汇列表 <span>{{ totalWordCount }}</span></h2>
-            <p>查找单词、听读音，也可以选取 5–10 词进行自由练习。</p>
+            <p>查找单词、听读音，隐藏释义自测，也可以选取 5–10 词进行自由练习。</p>
           </div>
           <button v-if="bookType !== 'SYSTEM' && !loadingDetail && !detailError" class="add-button" type="button" @click="dialogVisible = true">＋ 添加单词</button>
         </div>
@@ -67,13 +67,26 @@
               <span aria-hidden="true">⌕</span>
               <input v-model="searchQuery" type="search" placeholder="搜索单词或中文释义" />
             </label>
-            <span class="result-count" role="status">{{ searchQuery.trim() ? '找到 ' + filteredWords.length + ' 词' : '共 ' + words.length + ' 词' }}</span>
+            <div class="toolbar-actions">
+              <span class="result-count" role="status">{{ loadingDetail ? '正在加载' : searchQuery.trim() ? '找到 ' + filteredWords.length + ' 词' : '共 ' + words.length + ' 词' }}</span>
+              <button v-if="!loadingDetail && !detailError && words.length" class="meaning-toggle-all" type="button" :aria-pressed="meaningsHidden" @click="toggleAllMeanings">
+                <span class="toggle-icon" aria-hidden="true">{{ meaningsHidden ? '◉' : '◌' }}</span>
+                {{ meaningsHidden ? '展示全部释义' : '隐藏全部释义' }}
+              </button>
+            </div>
           </div>
 
-          <div v-if="loadingDetail" class="content-state" role="status">
-            <span class="state-symbol" aria-hidden="true">···</span>
-            <h3>正在打开词书</h3>
-            <p>单词列表加载中。</p>
+          <div v-if="loadingDetail" class="word-loading" role="status" aria-live="polite" aria-label="正在加载词汇列表">
+            <div class="loading-book" aria-hidden="true">
+              <span class="loading-book-spine"></span>
+              <span class="loading-book-page"></span>
+              <span class="loading-book-letter">Aa</span>
+            </div>
+            <h3>正在翻开词书</h3>
+            <p>词汇正在排好队，马上就能开始复习。</p>
+            <div class="loading-rows" aria-hidden="true">
+              <span v-for="index in 3" :key="index" class="loading-row"><i></i><i></i><i></i></span>
+            </div>
           </div>
           <div v-else-if="detailError" class="content-state" role="alert">
             <span class="state-symbol" aria-hidden="true">↻</span>
@@ -99,7 +112,10 @@
                   <strong>{{ word.word }}</strong>
                 </label>
                 <span class="phonetic">{{ word.phonetic ? '/' + word.phonetic + '/' : '—' }}</span>
-                <span class="meaning">{{ word.meaning }}</span>
+                <button type="button" class="meaning-cell" :class="{ concealed: !isMeaningVisible(word.id) }" :aria-label="(isMeaningVisible(word.id) ? '隐藏 ' : '展示 ') + word.word + ' 的释义'" :aria-pressed="isMeaningVisible(word.id)" @click="toggleMeaning(word.id)">
+                  <span v-if="isMeaningVisible(word.id)" class="meaning">{{ word.meaning || '暂无释义' }}</span>
+                  <span v-else class="meaning-placeholder"><span aria-hidden="true">✦</span> 点击揭晓释义</span>
+                </button>
                 <div class="word-actions">
                   <button type="button" class="audio-button" :aria-label="'播放 ' + word.word + ' 的读音'" @click="playWordAudio(word.word)">♫</button>
                   <button v-if="bookType !== 'SYSTEM'" type="button" class="remove-button" :aria-label="'从词书移除 ' + word.word" @click="deleteWord(word)">移除</button>
@@ -204,6 +220,8 @@ const loadingDetail = ref(true)
 const detailError = ref('')
 const updatingPlan = ref(false)
 const searchQuery = ref('')
+const meaningsHidden = ref(false)
+const meaningOverrides = ref(new Set<string>())
 const selectedIds = ref(new Set<string>())
 const currentPage = ref(1)
 const pageSize = 50
@@ -221,6 +239,20 @@ const pageCount = computed(() => Math.max(1, Math.ceil(filteredWords.value.lengt
 const pagedWords = computed(() => filteredWords.value.slice((currentPage.value - 1) * pageSize, currentPage.value * pageSize))
 const selectedWords = computed(() => words.value.filter(word => selectedIds.value.has(word.id)))
 
+function isMeaningVisible(id: string) {
+  return meaningsHidden.value ? meaningOverrides.value.has(id) : !meaningOverrides.value.has(id)
+}
+function toggleMeaning(id: string) {
+  const next = new Set(meaningOverrides.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  meaningOverrides.value = next
+}
+function toggleAllMeanings() {
+  meaningsHidden.value = !meaningsHidden.value
+  meaningOverrides.value = new Set()
+}
+
 watch(searchQuery, () => { currentPage.value = 1 })
 watch(() => route.params.id, () => {
   bookName.value = '词书详情'
@@ -231,6 +263,8 @@ watch(() => route.params.id, () => {
   studyEnabled.value = false
   words.value = []
   searchQuery.value = ''
+  meaningsHidden.value = false
+  meaningOverrides.value = new Set()
   selectedIds.value = new Set()
   currentPage.value = 1
   void loadData()
@@ -249,6 +283,7 @@ async function loadData() {
     bookName.value = detail.name
     bookType.value = detail.bookType || 'USER'
     words.value = detail.wordList || []
+    meaningOverrides.value = new Set([...meaningOverrides.value].filter(id => words.value.some(word => word.id === id)))
     totalWordCount.value = detail.wordCount ?? words.value.length
     learnedCount.value = detail.learnedCount ?? 0
     coverageValue.value = detail.learningCoverage ?? detail.mastery ?? 0
@@ -449,6 +484,10 @@ button:focus-visible, input:focus-visible { outline: 3px solid #bd914d; outline-
 .add-button:hover { background: #e8efe6; }
 .list-panel { background: #fffefa; border: 1px solid #e4e8dc; border-radius: 14px; }
 .list-toolbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 22px; border-bottom: 1px solid #e7ebdf; border-radius: 14px 14px 0 0; background: #fffefa; }
+.toolbar-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px; }
+.meaning-toggle-all { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 38px; padding: 0 12px; border: 1px solid #bed0bd; border-radius: 8px; background: #edf4eb; color: #315b40; font-size: 12px; font-weight: 800; white-space: nowrap; transition: background-color .18s, border-color .18s; }
+.meaning-toggle-all:hover { background: #e1eddf; border-color: #8faf91; }
+.toggle-icon { font-size: 16px; line-height: 1; }
 .search-field { display: flex; align-items: center; gap: 8px; width: min(100%, 390px); height: 42px; box-sizing: border-box; padding: 0 13px; border: 1px solid #d9e2d5; border-radius: 8px; background: #f8f9f3; }
 .search-field:focus-within { border-color: #587a5c; }
 .search-field span:not(.sr-only) { font-size: 25px; color: #78917b; line-height: 1; }
@@ -465,6 +504,12 @@ button:focus-visible, input:focus-visible { outline: 3px solid #bd914d; outline-
 .word-select strong { font: 600 18px Georgia, serif; color: #254330; overflow-wrap: anywhere; }
 .phonetic { color: #718175; font-size: 13px; overflow-wrap: anywhere; }
 .meaning { color: #3c5140; font-size: 14px; line-height: 1.55; white-space: pre-line; overflow-wrap: anywhere; }
+.meaning-cell { display: block; box-sizing: border-box; min-width: 0; width: 100%; padding: 7px 9px; margin: -7px -9px; border: 1px solid transparent; border-radius: 7px; background: transparent; text-align: left; }
+.meaning-cell:hover { border-color: #dce8d7; background: #f0f6ed; }
+.meaning-cell.concealed { border: 1px dashed #c8d8c4; background: #f5f8f1; }
+.meaning-cell.concealed:hover { border-color: #83a287; background: #eaf2e7; }
+.meaning-placeholder { color: #698570; font-size: 12px; font-weight: 700; letter-spacing: .025em; }
+.meaning-placeholder span { margin-right: 5px; color: #ae8b4a; }
 .word-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
 .audio-button { width: 44px; height: 44px; border: 1px solid #cbdacb; color: #315b40; background: #f0f6ef; border-radius: 50%; font-size: 17px; }
 .audio-button:hover { background: #dcebdc; }
@@ -481,6 +526,23 @@ button:focus-visible, input:focus-visible { outline: 3px solid #bd914d; outline-
 .content-state h3 { font: 600 23px Georgia, 'Songti SC', serif; margin: 18px 0 6px; }
 .content-state p { max-width: 440px; margin: 0; color: var(--muted); line-height: 1.6; }
 .content-state button { margin-top: 18px; padding: 9px 16px; background: transparent; border: 1px solid #315b40; border-radius: 8px; color: #315b40; font-weight: 700; }
+.word-loading { display: flex; flex-direction: column; align-items: center; overflow: hidden; padding: 42px 22px 30px; text-align: center; }
+.loading-book { position: relative; width: 70px; height: 78px; border-radius: 4px 9px 9px 4px; background: #315b40; box-shadow: 5px 7px 0 #d6dfcf, 8px 12px 20px #244b3522; perspective: 250px; }
+.loading-book-spine { position: absolute; inset: 0 auto 0 7px; border-left: 1px solid #d4c59180; }
+.loading-book-page { position: absolute; inset: 6px 5px 6px 12px; border-radius: 1px 6px 6px 1px; background: #f6eed9; transform-origin: left center; animation: turn-page 1.8s ease-in-out infinite; }
+.loading-book-page::before, .loading-book-page::after { content: ''; position: absolute; left: 11px; right: 10px; height: 2px; border-radius: 2px; background: #abc0a6; }
+.loading-book-page::before { top: 25px; }.loading-book-page::after { top: 33px; right: 19px; }
+.loading-book-letter { position: absolute; right: 10px; bottom: 9px; color: #e9cf92; font: italic 18px Georgia, serif; }
+.word-loading h3 { margin: 18px 0 5px; font: 600 23px Georgia, 'Songti SC', serif; }
+.word-loading p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.loading-rows { width: min(100%, 640px); margin-top: 29px; border: 1px solid #edf0e7; border-radius: 8px; overflow: hidden; }
+.loading-row { display: grid; grid-template-columns: 1fr .6fr 1.5fr; gap: 30px; align-items: center; height: 42px; padding: 0 18px; background: #fffefa; }
+.loading-row + .loading-row { border-top: 1px solid #f0f2ea; }
+.loading-row i { height: 9px; border-radius: 20px; background: linear-gradient(100deg, #e7eee4 25%, #f6f9f2 45%, #e7eee4 65%); background-size: 220% 100%; animation: loading-sheen 1.6s linear infinite; }
+.loading-row i:nth-child(2) { width: 80%; }.loading-row i:nth-child(3) { width: 92%; }
+.loading-row:nth-child(2) i { animation-delay: .16s; }.loading-row:nth-child(3) i { animation-delay: .32s; }
+@keyframes turn-page { 0%, 18%, 100% { transform: rotateY(0deg); } 50%, 67% { transform: rotateY(-75deg); } }
+@keyframes loading-sheen { to { background-position-x: -220%; } }
 .practice-note { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 24px 4px; }
 .practice-note strong { font-size: 15px; }
 .practice-note p { color: var(--muted); font-size: 13px; margin: 6px 0 0; line-height: 1.6; }
@@ -536,12 +598,16 @@ button:focus-visible, input:focus-visible { outline: 3px solid #bd914d; outline-
   .section-heading h2 { font-size: 28px; }
   .section-heading p:last-child { max-width: 245px; }
   .add-button { padding: 9px 10px; font-size: 12px; }
-  .list-toolbar { padding: 14px; }
+  .list-toolbar { flex-wrap: wrap; gap: 10px; padding: 14px; }
+  .search-field { width: 100%; }
+  .toolbar-actions { width: 100%; justify-content: space-between; gap: 6px; }
   .word-table-heading { display: none; }
   .word-row { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; padding: 15px 14px; }
   .word-select { grid-column: 1; }
   .phonetic { grid-column: 1; padding-left: 31px; }
   .meaning { grid-column: 1 / -1; padding-left: 31px; grid-row: 3; }
+  .meaning-cell { grid-column: 1 / -1; grid-row: 3; width: calc(100% - 31px); margin: 0 0 0 31px; padding: 7px 9px; }
+  .meaning-cell .meaning { padding-left: 0; }
   .word-actions { grid-column: 2; grid-row: 1 / 3; }
   .remove-button { display: block; }
   .pagination { flex-wrap: wrap; }
@@ -558,6 +624,8 @@ button:focus-visible, input:focus-visible { outline: 3px solid #bd914d; outline-
 }
 @media (prefers-reduced-motion: reduce) {
   .coverage-track span { transition: none; }
+  .meaning-toggle-all { transition: none; }
+  .loading-book-page, .loading-row i { animation: none; }
   *, *::before, *::after { scroll-behavior: auto !important; }
 }
 </style>

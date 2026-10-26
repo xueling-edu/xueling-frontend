@@ -88,4 +88,48 @@ describe('word book detail', () => {
     expect(speak.mock.calls[0]![0]).toMatchObject({ text: 'word1', lang: 'en-US' })
     wrapper.unmount()
   })
+
+  it('hides all meanings for recall and reveals only the chosen word', async () => {
+    const wrapper = mountBook()
+    await flushPromises()
+    await wrapper.find('.meaning-toggle-all').trigger('click')
+    expect(wrapper.find('.word-list').text()).not.toContain('释义1')
+    expect(wrapper.findAll('.meaning-placeholder')).toHaveLength(50)
+
+    await wrapper.findAll('.meaning-cell')[0]!.trigger('click')
+    expect(wrapper.findAll('.word-row')[0]!.text()).toContain('释义1')
+    expect(wrapper.findAll('.word-row')[1]!.text()).not.toContain('释义2')
+
+    await wrapper.findAll('.pagination button')[1]!.trigger('click')
+    expect(wrapper.findAll('.meaning-placeholder')).toHaveLength(5)
+    await wrapper.find('.meaning-toggle-all').trigger('click')
+    expect(wrapper.find('.word-list').text()).toContain('释义51')
+    wrapper.unmount()
+  })
+
+  it('keeps meaning search usable while meanings are hidden', async () => {
+    const wrapper = mountBook()
+    await flushPromises()
+    await wrapper.find('.meaning-toggle-all').trigger('click')
+    await wrapper.find('.search-field input').setValue('释义55')
+    expect(wrapper.findAll('.word-row')).toHaveLength(1)
+    expect(wrapper.find('.word-list').text()).not.toContain('释义55')
+    await wrapper.find('.meaning-cell').trigger('click')
+    expect(wrapper.find('.word-list').text()).toContain('释义55')
+    wrapper.unmount()
+  })
+
+  it('shows a waiting animation while word data is loading', async () => {
+    let resolveDetail!: (value: unknown) => void
+    api.getWordBookDetail.mockImplementationOnce(() => new Promise(resolve => { resolveDetail = resolve }))
+    const wrapper = mountBook()
+    expect(wrapper.find('.word-loading').attributes('aria-label')).toBe('正在加载词汇列表')
+    expect(wrapper.findAll('.loading-row')).toHaveLength(3)
+    expect(wrapper.find('.meaning-toggle-all').exists()).toBe(false)
+    resolveDetail({ code: 0, data: { id: 'book-1', name: '四级词汇', bookType: 'SYSTEM', wordList: makeWords(1) } })
+    await flushPromises()
+    expect(wrapper.find('.word-loading').exists()).toBe(false)
+    expect(wrapper.findAll('.word-row')).toHaveLength(1)
+    wrapper.unmount()
+  })
 })
