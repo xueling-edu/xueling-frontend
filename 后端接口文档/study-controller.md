@@ -4,7 +4,7 @@
 
 ## 自动打卡与 GET `/study/calendar?month=2026-10`
 
-每次正式学习评分成功后，后端检查当前到期卡片和今日可学新词。若队列已清空，则在评分事务内按用户学习时区写入当天的唯一打卡记录。没有学习评分的空任务日不会自动打卡；自由练习不计入。打卡写入后，即使当天稍后又有卡片到期也保留记录。`GET /study/today` 增加 `checkedIn` 布尔字段。
+每次正式学习评分成功后，后端检查当前到期卡片和今日可学新词。若队列已清空，则在评分事务内按用户学习时区写入当天的唯一打卡记录；当天稍后到期的卡片不阻止打卡，也不取消已有打卡。当天已有正式评分但尚未打卡的用户，读取 `/study/today`、`/study/stats` 或 `/study/calendar` 时也会按当前队列补写当天打卡。没有学习评分的空任务日不会自动打卡；自由练习不计入。`GET /study/today` 和 `GET /study/stats` 均返回 `checkedIn` 布尔字段。
 
 `month` 可省略，默认用户学习时区的当前月；格式为 `YYYY-MM`，可查看当前月及此前十年。返回 `month`、`today`、`checkedInToday`、`currentStreak`、`longestStreak`、`totalCheckIns` 与 `days`。`days` 包含当月每一天，字段为 `date`、`checkedIn`、`reviewCount`、`newWords`、`studyTimeMs`。连续天数截至今天；如果今天尚未打卡，则截至昨天。
 

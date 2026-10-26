@@ -55,6 +55,20 @@ describe('today study review recovery', () => {
     wrapper.unmount()
   })
 
+  it('explains that a later review does not affect todays saved check-in', async () => {
+    api.getTodayStudy.mockResolvedValueOnce({ code: 0, data: {
+      dueCount: 0, newRemaining: 0, todayReviewed: 44, todayNew: 15,
+      checkedIn: true, nextDueAt: '2026-10-26T14:18:00Z', cards: []
+    } })
+    api.getWordBooks.mockResolvedValueOnce({ code: 0, data: [{ studyEnabled: true }] })
+    const wrapper = mountStudy()
+    await flushPromises()
+
+    expect(wrapper.find('.complete-panel h2').text()).toBe('今日任务完成，已自动打卡')
+    expect(wrapper.find('.complete-panel').text()).toContain('再次复习；不影响今天的打卡')
+    wrapper.unmount()
+  })
+
   it('keeps pronunciation and examples behind the answer until recall is attempted', async () => {
     api.getTodayStudy.mockResolvedValueOnce({ code: 0, data: {
       dueCount: 1, newRemaining: 0, todayReviewed: 0, todayNew: 0,

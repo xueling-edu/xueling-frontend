@@ -9,18 +9,27 @@ const wordBooks = ref<WordBookVo[] | null>(null)
 const statsError = ref(false)
 const needsPlan = computed(() => wordBooks.value !== null && !wordBooks.value.some(book => book.studyEnabled))
 const focusActionTo = computed(() => needsPlan.value ? '/english/vocab' : '/english/vocab/study')
-const focusActionLabel = computed(() => needsPlan.value ? '选择词书开始' : '开始学习')
+const focusActionLabel = computed(() => {
+  if (needsPlan.value) return '选择词书开始'
+  if (studyStats.value?.checkedIn) return studyStats.value.dueCount > 0 ? '继续复习' : '查看今日学习'
+  return studyStats.value?.todayReviewed ? '继续学习' : '开始学习'
+})
 const focusTitle = computed(() => {
+  if (studyStats.value?.checkedIn) return '今日已自动打卡'
   if (needsPlan.value) return '先选择一本词书'
   if (!studyStats.value) return '今日单词'
   if (studyStats.value.dueCount > 0) return '先完成到期复习'
-  return studyStats.value.todayReviewed > 0 ? '复习已完成' : '今日单词'
+  return studyStats.value.todayReviewed > 0 ? '继续完成今日学习' : '今日单词'
 })
 const focusDescription = computed(() => {
+  if (studyStats.value?.checkedIn && needsPlan.value) return '今天已打卡；选择词书后可以继续学习。'
   if (needsPlan.value) return '把想学的词书加入计划，今天的单词就会从这里开始。'
   if (!studyStats.value) return '先回忆，再揭晓答案，按计划稳步积累。'
+  if (studyStats.value.checkedIn) return studyStats.value.dueCount > 0
+    ? `今天已打卡，另有 ${studyStats.value.dueCount} 张卡片可以再次复习。`
+    : '今天的学习已记录；后续卡片可以再复习，不影响今天的打卡。'
   if (studyStats.value.dueCount > 0) return `有 ${studyStats.value.dueCount} 个词已到期，先巩固再学习新词。`
-  return studyStats.value.todayReviewed > 0 ? '当前到期任务已完成，稍后再来看看。' : '现在没有到期单词，可以从新词开始。'
+  return studyStats.value.todayReviewed > 0 ? '今天已有学习记录，继续完成当前可学的单词即可自动打卡。' : '现在没有可复习的单词，可以从新词开始。'
 })
 
 onMounted(async () => {

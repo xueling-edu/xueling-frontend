@@ -143,12 +143,13 @@
 
       <section v-else class="state-panel complete-panel">
         <div class="complete-mark">{{ today?.checkedIn ? '✦' : '✓' }}</div>
-        <h2>{{ today?.checkedIn ? '今日已自动打卡' : today?.todayReviewed ? '当前任务完成' : '暂时没有学习任务' }}</h2>
-        <p v-if="today?.checkedIn" class="check-in-note">成长日历又点亮了一天。每一次认真回忆，都在让记忆扎根。</p>
-        <p v-if="today?.nextDueAt">下一张卡片预计在 {{ formatDue(today.nextDueAt) }} 到期。</p>
+        <h2>{{ today?.checkedIn ? '今日任务完成，已自动打卡' : today?.todayReviewed ? '当前暂无可学卡片' : '暂时没有学习任务' }}</h2>
+        <p v-if="today?.checkedIn" class="check-in-note">今天已完成 {{ today.todayReviewed }} 次回忆，成长日历已点亮。</p>
+        <p v-else-if="today?.todayReviewed">今天已有学习记录，但打卡尚未确认。请检查新任务或稍后重试。</p>
+        <p v-if="today?.nextDueAt">下一张卡片可在 {{ formatDue(today.nextDueAt) }} 再次复习{{ today.checkedIn ? '；不影响今天的打卡' : '；到时再来即可' }}。</p>
         <p v-else-if="planState === 'unknown' && !today?.todayReviewed">尚未找到可学的单词，请检查词书计划或稍后重试。</p>
         <p v-else-if="today?.newRemaining && today.newRemaining > 0">当前启用的词书没有更多未学单词。</p>
-        <p v-else>今天已完成 {{ today?.todayReviewed ?? 0 }} 次回忆，稍后回来看看新的到期卡片。</p>
+        <p v-else-if="!today?.checkedIn && !today?.todayReviewed">完成一次正式学习评分后，当前可学任务清空时会自动打卡。</p>
         <div class="complete-actions">
           <button class="primary-button" type="button" @click="loadToday">检查新任务</button>
           <button class="text-button" type="button" @click="router.push('/english/vocab/insights#growth-calendar')">查看成长日历</button>

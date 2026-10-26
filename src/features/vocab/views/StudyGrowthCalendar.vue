@@ -102,7 +102,7 @@ onUnmounted(() => { document.removeEventListener('click', closeJumpOnOutsideClic
       <div>
         <p class="eyebrow">A LITTLE, EVERY DAY / 每日生长</p>
         <h2 id="growth-title">把坚持，种成一片森林。</h2>
-        <p>完成当天记忆任务后自动打卡。每一片叶子，都是认真回忆过的一天。</p>
+        <p>完成当前可学的记忆任务后自动打卡；稍后出现的复习卡不会取消打卡。每一片叶子，都是认真回忆过的一天。</p>
       </div>
       <div class="leaf-art" aria-hidden="true"><span class="stem"></span><span class="leaf leaf-one"></span><span class="leaf leaf-two"></span><span class="leaf leaf-three"></span></div>
     </div>
@@ -166,7 +166,7 @@ onUnmounted(() => { document.removeEventListener('click', closeJumpOnOutsideClic
             <h4>{{ selected.date.slice(5).replace('-', ' 月 ') }} 日</h4>
             <div class="detail-symbol" :class="{ earned: selected.checkedIn }" aria-hidden="true">{{ selected.checkedIn ? '✦' : selected.reviewCount > 0 ? '◌' : '·' }}</div>
             <strong>{{ selected.checkedIn ? '这一天，已点亮' : selected.reviewCount > 0 ? selected.date === calendar.today ? '这一页，还在生长' : '这一天，留下了学习足迹' : selected.date === calendar.today ? '今天，等你开始' : '留白也是旅程的一部分' }}</strong>
-            <p v-if="selected.checkedIn">当天任务完成，自动留下一片成长的叶子。</p>
+            <p v-if="selected.checkedIn">完成当时可学的任务后，自动留下一片成长的叶子。</p>
             <p v-else-if="selected.reviewCount > 0">{{ selected.date === calendar.today ? '已有学习记录，继续完成当天任务即可打卡。' : '这天有学习记录，但没有打卡记录。' }}</p>
             <p v-else-if="selected.date === calendar.today">从一次认真回忆开始，写下今天的记录。</p>
             <p v-else>以自己的节奏，继续向前。</p>

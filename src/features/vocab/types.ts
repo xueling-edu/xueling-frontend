@@ -129,6 +129,7 @@ export interface StudyStats {
   dueCount: number
   dueRecallAttempts: number
   dueRecallRate: number | null
+  checkedIn: boolean
 }
 
 export interface StudyDayStats {
