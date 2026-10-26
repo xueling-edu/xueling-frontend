@@ -141,26 +141,39 @@
         </div>
       </section>
 
-      <section v-else class="state-panel complete-panel">
-        <div class="complete-mark">{{ today?.checkedIn ? '✦' : '✓' }}</div>
-        <h2>{{ today?.checkedIn ? '今日任务完成，已自动打卡' : today?.todayReviewed ? '当前暂无可学卡片' : '暂时没有学习任务' }}</h2>
-        <p v-if="today?.checkedIn" class="check-in-note">今天已完成 {{ today.todayReviewed }} 次回忆，成长日历已点亮。</p>
-        <p v-else-if="today?.todayReviewed">今天已有学习记录，但打卡尚未确认。请检查新任务或稍后重试。</p>
-        <p v-if="today?.nextDueAt">下一张卡片可在 {{ formatDue(today.nextDueAt) }} 再次复习{{ today.checkedIn ? '；不影响今天的打卡' : '；到时再来即可' }}。</p>
-        <p v-else-if="planState === 'unknown' && !today?.todayReviewed">尚未找到可学的单词，请检查词书计划或稍后重试。</p>
-        <p v-else-if="today?.newRemaining && today.newRemaining > 0">当前启用的词书没有更多未学单词。</p>
-        <p v-else-if="!today?.checkedIn && !today?.todayReviewed">完成一次正式学习评分后，当前可学任务清空时会自动打卡。</p>
+      <section v-else class="state-panel complete-panel" :class="{ 'is-checked-in': today?.checkedIn }">
+        <div class="completion-heading">
+          <div class="complete-mark" aria-hidden="true">{{ today?.checkedIn ? '✦' : '✓' }}</div>
+          <div class="completion-copy">
+            <span class="completion-eyebrow">{{ today?.checkedIn ? '今日学习 · 已打卡' : '今日学习 · 暂无卡片' }}</span>
+            <h2>{{ today?.checkedIn ? '今天的学习已完成' : today?.todayReviewed ? '当前暂无可学卡片' : '暂时没有学习任务' }}</h2>
+            <p v-if="today?.checkedIn" class="check-in-note">已自动打卡，成长日历已点亮。</p>
+            <p v-else-if="today?.todayReviewed">今天已有学习记录，但打卡尚未确认。请检查新任务或稍后重试。</p>
+            <p v-else>完成一次正式学习评分后，当前可学任务清空时会自动打卡。</p>
+          </div>
+        </div>
+        <div v-if="today?.nextDueAt" class="next-review">
+          <span class="next-review-icon" aria-hidden="true">↻</span>
+          <div>
+            <span class="next-review-label">下一次复习</span>
+            <p>{{ formatDue(today.nextDueAt) }} 后可再复习。</p>
+            <small>{{ today.checkedIn ? '到时再来，今天的打卡已保存。' : '到时回来完成评分即可。' }}</small>
+          </div>
+        </div>
+        <p v-else-if="planState === 'unknown' && !today?.todayReviewed" class="completion-hint">尚未找到可学的单词，请检查词书计划或稍后重试。</p>
+        <p v-else-if="today?.newRemaining && today.newRemaining > 0" class="completion-hint">当前启用的词书没有更多未学单词。</p>
         <div class="complete-actions">
-          <button class="primary-button" type="button" @click="loadToday">检查新任务</button>
-          <button class="text-button" type="button" @click="router.push('/english/vocab/insights#growth-calendar')">查看成长日历</button>
+          <button v-if="today?.checkedIn" class="primary-button" type="button" @click="router.push('/english/vocab/insights#growth-calendar')">查看成长日历 <span aria-hidden="true">↗</span></button>
+          <button v-else class="primary-button" type="button" @click="loadToday">检查新任务</button>
+          <button v-if="today?.checkedIn" class="text-button" type="button" @click="loadToday">检查新任务</button>
+          <button v-else class="text-button" type="button" @click="router.push('/english/vocab/insights#growth-calendar')">查看成长日历</button>
           <button class="text-button" type="button" @click="router.push('/english/vocab')">管理词书</button>
         </div>
-      </section>
-
-      <section v-if="today && !loading && !loadError && !currentCard && !pendingReview && planState !== 'none'" class="metrics" aria-label="今日学习概览">
-        <div class="metric"><span>待复习</span><strong>{{ today.dueCount }}</strong></div>
-        <div class="metric"><span>剩余新词额度</span><strong>{{ today.newRemaining }}</strong></div>
-        <div class="metric"><span>今日已完成</span><strong>{{ today.todayReviewed }}</strong></div>
+        <div v-if="today" class="completion-stats" aria-label="今日学习概览">
+          <div><strong>{{ today.todayReviewed }}<small>次</small></strong><span>今日回忆</span></div>
+          <div><strong>{{ today.todayNew }}<small>个</small></strong><span>新学单词</span></div>
+          <div><strong>{{ today.dueCount }}<small>张</small></strong><span>当前待复习</span></div>
+        </div>
       </section>
     </div>
 
@@ -450,10 +463,6 @@ button { cursor: pointer; font: inherit; }
 .intro h1 { font-family: Georgia, 'Songti SC', serif; font-size: clamp(40px, 6vw, 60px); line-height: 1.05; margin: 8px 0 12px; font-weight: 700; }
 .study-subtitle { color: var(--xl-ink-soft); font-size: 14px; line-height: 1.5; }
 .today-date { color: #7b8b7e; font-size: 14px; white-space: nowrap; }
-.metrics { max-width: 800px; display: grid; grid-template-columns: repeat(3, 1fr); background: #e7ebe0; border: 1px solid #dce3d6; border-radius: 16px; margin: 30px auto 0; overflow: hidden; }
-.metric { display: flex; flex-direction: column; gap: 6px; padding: 15px 24px; border-right: 1px solid #d2dcce; }
-.metric:last-child { border-right: 0; }
-.metric span { color: #617263; font-size: 12px; }.metric strong { font-size: 25px; line-height: 1; font-family: Georgia, serif; }
 .session { max-width: 800px; margin: 0 auto; }.session-meta { display: flex; justify-content: space-between; align-items: center; color: #7c8d7f; font-size: 13px; margin-bottom: 13px; }
 .session-counts { text-align:right; font-variant-numeric:tabular-nums; }.session-counts i { margin:0 6px; font-style:normal; color:#b3c1b1; }
 .setting-help { width:100%; margin:7px 0 0; color:var(--xl-ink-soft); font-size:12px; line-height:1.5; }
@@ -619,13 +628,37 @@ button:focus-visible { outline: 3px solid #d6a24d; outline-offset: 3px; }
 .followup-actions { display: flex; gap: 10px; }
 .followup-actions .primary-button { flex: 1; width: auto; }
 .followup-example > span { color: #607b63; font-size: 12px; font-weight: 750; }
+.complete-panel { padding: 0; overflow: hidden; border-color: #d7e2d2; border-radius: 24px; background: #fffefa; box-shadow: 0 14px 36px #2946310d; text-align: left; }
+.complete-panel.is-checked-in { border-top: 4px solid #557c58; }
+.completion-heading { display: flex; align-items: flex-start; gap: 20px; padding: 34px 40px 0; }
+.complete-panel .complete-mark { flex: 0 0 54px; width: 54px; height: 54px; margin: 0; background: #e2eddf; color: #2f6845; font-size: 27px; }
+.completion-copy { min-width: 0; }
+.completion-eyebrow { display: block; margin: 0 0 6px; color: #5b8060; font-size: 11px; font-weight: 800; letter-spacing: .12em; }
+.complete-panel h2 { margin: 0 0 8px; color: #203c2b; font-size: clamp(27px, 3.5vw, 34px); line-height: 1.3; letter-spacing: -.03em; }
+.complete-panel p { margin: 0; color: #647968; font-size: 14px; line-height: 1.65; }
+.complete-panel .check-in-note { color: #3d7650 !important; font-weight: 650; }
+.next-review { display: flex; align-items: flex-start; gap: 14px; margin: 26px 40px 0; padding: 16px 18px; border: 1px solid #e1e8dc; border-radius: 14px; background: #f5f7f0; }
+.next-review-icon { flex: 0 0 36px; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: #e7eee2; color: #4d7954; font-size: 22px; line-height: 1; }
+.next-review-label { display: block; margin: 0 0 2px; color: #6e876f; font-size: 11px; font-weight: 800; letter-spacing: .08em; }
+.complete-panel .next-review p { color: #284b34; font-size: 16px; font-weight: 700; }
+.next-review small { display: block; margin-top: 2px; color: #738676; font-size: 12px; line-height: 1.5; }
+.complete-panel .completion-hint { margin: 24px 40px 0; }
+.complete-panel .complete-actions { justify-content: flex-start; margin: 24px 40px 30px; }
+.complete-panel .complete-actions button { min-height: 46px; }
+.completion-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid #e1e8dc; background: #f1f5ed; }
+.completion-stats > div { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 0; padding: 17px 10px; border-right: 1px solid #dfe8d9; }
+.completion-stats > div:last-child { border-right: 0; }
+.completion-stats strong { order: 1; color: #244a32; font: 600 26px/1.1 Georgia, 'Songti SC', serif; font-variant-numeric: tabular-nums; }
+.completion-stats strong small { margin-left: 3px; font: 600 11px/1 'Noto Sans SC', 'Microsoft YaHei', sans-serif; }
+.completion-stats span { color: #6b806d; font-size: 12px; }
 @media (max-width: 640px) {
   .study-page { padding: 14px 14px 60px; }
   .study-header { align-items: flex-start; flex-direction: column; gap: 4px; }
-  .intro { align-items: start; flex-direction: column; gap: 6px; padding: 18px 0; }
-  .study-subtitle { font-size: 13px; }
-  .metrics { margin-top: 22px; }
-  .metric { padding: 16px 10px; text-align: center; }
+  .intro { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'title date' 'subtitle subtitle'; align-items: center; column-gap: 10px; row-gap: 6px; padding: 18px 0 20px; }
+  .intro > div:first-child { display: contents; }
+  .intro h1 { grid-area: title; font-size: 31px; margin: 0; }
+  .intro .study-subtitle { grid-area: subtitle; margin: 0; font-size: 13px; }
+  .today-date { grid-area: date; margin: 0; font-size: 11px; }
   .session-meta { align-items: flex-start; gap: 10px; font-size: 12px; }
   .session-counts { max-width: 75%; line-height: 1.5; }
   .flashcard, .flashcard.revealed, .card-face { min-height: 365px; }
@@ -640,6 +673,26 @@ button:focus-visible { outline: 3px solid #d6a24d; outline-offset: 3px; }
   .followup-actions { flex-direction: column; }
   .complete-actions { flex-direction: column; align-items: stretch; }
   .complete-actions button { width: 100%; }
+  .complete-panel { border-radius: 20px; }
+  .completion-heading { gap: 13px; padding: 24px 20px 0; }
+  .complete-panel .complete-mark { flex-basis: 44px; width: 44px; height: 44px; font-size: 23px; }
+  .completion-eyebrow { margin-bottom: 5px; font-size: 10px; }
+  .complete-panel h2 { margin-bottom: 7px; font-size: clamp(22px, 6vw, 28px); line-height: 1.35; }
+  .complete-panel p { font-size: 13px; }
+  .next-review { gap: 10px; margin: 20px 20px 0; padding: 13px; }
+  .next-review-icon { flex-basis: 32px; width: 32px; height: 32px; font-size: 20px; }
+  .complete-panel .next-review p { font-size: 14px; }
+  .next-review small { font-size: 11px; }
+  .complete-panel .completion-hint { margin: 20px 20px 0; }
+  .complete-panel .complete-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin: 20px 20px 22px; }
+  .complete-panel .complete-actions button { width: 100%; min-height: 44px; padding: 9px 6px; font-size: 13px; }
+  .complete-panel .complete-actions button:first-child { grid-column: 1 / -1; min-height: 48px; }
+  .completion-stats > div { padding: 14px 5px; }
+  .completion-stats strong { font-size: 22px; }
+  .completion-stats span { font-size: 11px; }
+}
+@media (max-width: 360px) {
+  .study-page { padding-bottom: 120px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .card-inner, .reveal-button, .primary-button, .text-button, .audio-button, .rating-button { transition: none; }

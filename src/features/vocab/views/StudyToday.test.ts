@@ -64,8 +64,9 @@ describe('today study review recovery', () => {
     const wrapper = mountStudy()
     await flushPromises()
 
-    expect(wrapper.find('.complete-panel h2').text()).toBe('今日任务完成，已自动打卡')
-    expect(wrapper.find('.complete-panel').text()).toContain('再次复习；不影响今天的打卡')
+    expect(wrapper.find('.complete-panel h2').text()).toBe('今天的学习已完成')
+    expect(wrapper.find('.complete-panel').text()).toContain('已自动打卡')
+    expect(wrapper.find('.complete-panel').text()).toContain('今天的打卡已保存')
     wrapper.unmount()
   })
 
