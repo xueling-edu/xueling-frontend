@@ -98,6 +98,32 @@ describe('today study review recovery', () => {
     wrapper.unmount()
   })
 
+  it('shows the scored word while saving and preparing the next card', async () => {
+    let confirmReview!: (value: unknown) => void
+    let finishReload!: (value: unknown) => void
+    api.submitStudyReview.mockReturnValue(new Promise(resolve => { confirmReview = resolve }))
+    api.getTodayStudy.mockReturnValueOnce(Promise.resolve({ code: 0, data: {
+      dueCount: 0, newRemaining: 1, todayReviewed: 0, todayNew: 0, cards: [card]
+    } })).mockReturnValueOnce(new Promise(resolve => { finishReload = resolve }))
+    const wrapper = mountStudy()
+    await flushPromises()
+    await wrapper.find('.reveal-button').trigger('click')
+    await wrapper.findAll('.rating-button')[3]!.trigger('click')
+
+    expect(wrapper.find('.review-transition').text()).toContain('正在收好这次回忆')
+    expect(wrapper.find('.review-transition').text()).toContain('hello')
+    expect(wrapper.find('.attention-panel').exists()).toBe(false)
+
+    confirmReview({ code: 0, data: { wordId: '123', version: 1 } })
+    await flushPromises()
+    expect(wrapper.find('.review-transition').text()).toContain('已记录，准备下一词')
+
+    finishReload({ code: 0, data: { dueCount: 0, newRemaining: 0, todayReviewed: 1, todayNew: 1, cards: [] } })
+    await flushPromises()
+    expect(wrapper.find('.review-transition').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('plays the revealed word when the pronunciation button is clicked', async () => {
     const speak = vi.fn()
     vi.stubGlobal('speechSynthesis', { cancel: vi.fn(), speak })

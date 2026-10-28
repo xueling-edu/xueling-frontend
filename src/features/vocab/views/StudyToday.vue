@@ -17,7 +17,18 @@
         <div class="today-date">{{ dateLabel }}</div>
       </section>
 
-      <div v-if="loading" class="state-panel" role="status">正在整理今天的单词…</div>
+      <section v-if="reviewTransition && (saving || loading)" class="review-transition" role="status" aria-live="polite" aria-atomic="true">
+        <div class="transition-art" aria-hidden="true">
+          <div class="transition-card transition-card-back"></div>
+          <div class="transition-card transition-card-front"><span class="transition-spark">✦</span><strong>{{ reviewTransition.word }}</strong><span class="transition-card-foot">RECALL / {{ reviewTransition.rating }}</span></div>
+          <span class="transition-orbit orbit-one"></span><span class="transition-orbit orbit-two"></span>
+        </div>
+        <span class="transition-eyebrow">今日学习 · 记忆入档</span>
+        <h2>{{ reviewTransition.phase === 'saving' ? '正在收好这次回忆' : '已记录，准备下一词' }}</h2>
+        <p>{{ reviewTransition.phase === 'saving' ? '你可以稍作停顿，结果确认后就继续。' : '下一张卡片马上就位。' }}</p>
+        <div class="transition-trail" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+      </section>
+      <div v-else-if="loading" class="state-panel" role="status">正在整理今天的单词…</div>
       <section v-else-if="pendingReview" class="state-panel attention-panel" aria-label="待确认的评分" role="alert">
         <h2>{{ saving ? '正在确认评分…' : canRefreshAfterError ? '当前卡片已变化' : '上次评分尚未确认' }}</h2>
         <p>{{ saveError || '正在用原请求确认保存结果，请稍候。' }}</p>
@@ -226,6 +237,7 @@ const loadError = ref('')
 const revealed = ref(false)
 const expandedMeaning = ref(false)
 const saving = ref(false)
+const reviewTransition = ref<{ word: string; rating: number; phase: 'saving' | 'next' } | null>(null)
 const saveError = ref('')
 const canRefreshAfterError = ref(false)
 const pendingReview = ref<SubmitStudyReview | null>(null)
@@ -309,11 +321,17 @@ async function loadToday() {
   loadError.value = ''
   planState.value = 'unknown'
   try {
-    const response = await getTodayStudy()
+    const [todayResult, followupsResult, summaryResult] = await Promise.allSettled([
+      getTodayStudy(), getStudyFollowups(), getStudyFollowupSummary()
+    ])
+    if (todayResult.status === 'rejected') throw todayResult.reason
+    const response = todayResult.value
     today.value = response.data
     try {
-      serverFollowups.value = (await getStudyFollowups()).data
-      followupSummary.value = (await getStudyFollowupSummary()).data
+      if (followupsResult.status === 'rejected') throw followupsResult.reason
+      if (summaryResult.status === 'rejected') throw summaryResult.reason
+      serverFollowups.value = followupsResult.value.data
+      followupSummary.value = summaryResult.value.data
       if (followup.value?.confirmed) {
         const matching = serverFollowups.value.find(item => item.requestId === followup.value?.requestId)
         if (!matching || (followup.value.mode !== 'revisit' && matching.teachingResult)) {
@@ -394,6 +412,7 @@ function playAudio(word: string) {
 
 function rate(rating: 1 | 2 | 3 | 4) {
   if (!revealed.value || !currentCard.value || saving.value) return
+  reviewTransition.value = { word: currentCard.value.word, rating, phase: 'saving' }
   const review: SubmitStudyReview = {
     wordId: currentCard.value.wordId,
     rating,
@@ -413,6 +432,7 @@ function rate(rating: 1 | 2 | 3 | 4) {
 
 async function sendReview(review: SubmitStudyReview) {
   if (saving.value) return
+  if (!reviewTransition.value) reviewTransition.value = { word: currentCard.value?.word ?? '这张卡片', rating: review.rating, phase: 'saving' }
   saving.value = true
   saveError.value = ''
   canRefreshAfterError.value = false
@@ -429,6 +449,7 @@ async function sendReview(review: SubmitStudyReview) {
     if (review.rating === 4 || followup.value?.requestId !== review.requestId) {
       clearFollowup(userStore.userInfo?.id)
       followup.value = null
+      reviewTransition.value.phase = 'next'
       await loadToday()
     }
   } catch (error: any) {
@@ -436,6 +457,7 @@ async function sendReview(review: SubmitStudyReview) {
     canRefreshAfterError.value = error?.code === 500 || error?.code === 501
   } finally {
     saving.value = false
+    reviewTransition.value = null
   }
 }
 
@@ -579,6 +601,26 @@ button { cursor: pointer; font: inherit; }
 .rating-button.good { border-color: #abc6ad; background: #f2f8f1; }
 .rating-button:focus-visible { outline: 3px solid #d6a24d; outline-offset: 2px; }
 .attention-panel { border-color: #d8a67e; background: #fffaf3; }
+.review-transition { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; max-width: 760px; min-height: 390px; margin: 0 auto; overflow: hidden; border: 1px solid #d8e3d5; border-radius: 22px; background: radial-gradient(circle at 50% 30%, #f7faf2 0, #fffef9 62%); box-shadow: 0 16px 38px #2946310d; text-align: center; }
+.transition-art { position: relative; width: 168px; height: 148px; margin: 0 0 6px; }
+.transition-card { position: absolute; top: 18px; left: 25px; width: 118px; height: 112px; border-radius: 13px; }
+.transition-card-back { border: 1px solid #c9dac8; background: #e9f1e6; transform: rotate(8deg) translate(8px, -3px); animation: transition-back 1.8s ease-in-out infinite; }
+.transition-card-front { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border: 1px solid #9fbca4; background: #fffefa; box-shadow: 0 10px 20px #315c4921; transform: rotate(-6deg); animation: transition-front 1.8s ease-in-out infinite; }
+.transition-card-front strong { max-width: 105px; overflow: hidden; color: #254d37; font: 600 19px/1.2 Georgia, 'Songti SC', serif; text-overflow: ellipsis; white-space: nowrap; }
+.transition-spark { color: #b58b3f; font-size: 20px; line-height: 1; }
+.transition-card-foot { color: #8a9d89; font: 700 9px/1 Georgia, serif; letter-spacing: .1em; }
+.transition-orbit { position: absolute; width: 7px; height: 7px; border-radius: 50%; background: #b5cbb0; animation: orbit-pulse 1.8s ease-in-out infinite; }
+.orbit-one { top: 11px; left: 11px; }.orbit-two { right: 6px; bottom: 19px; animation-delay: .5s; background: #d5b777; }
+.transition-eyebrow { color: #6e8c72; font-size: 11px; font-weight: 800; letter-spacing: .16em; }
+.review-transition h2 { margin: 10px 0 5px; color: #244a32; font: 650 clamp(23px, 4vw, 29px)/1.35 Georgia, 'Songti SC', serif; }
+.review-transition p { margin: 0; padding: 0 20px; color: #738677; font-size: 13px; line-height: 1.6; }
+.transition-trail { display: flex; gap: 7px; margin-top: 22px; }
+.transition-trail span { width: 17px; height: 3px; border-radius: 9px; background: #d9e5d4; animation: trail-glow 1.4s ease-in-out infinite; }
+.transition-trail span:nth-child(2) { animation-delay: .18s; }.transition-trail span:nth-child(3) { animation-delay: .36s; }.transition-trail span:nth-child(4) { animation-delay: .54s; }
+@keyframes transition-front { 50% { transform: rotate(0) translateY(-5px); } }
+@keyframes transition-back { 50% { transform: rotate(11deg) translate(11px, -7px); } }
+@keyframes orbit-pulse { 50% { opacity: .35; transform: scale(.65); } }
+@keyframes trail-glow { 50% { background: #5c9267; transform: scaleX(1.2); } }
 .reveal-button, .primary-button, .text-button, .audio-button, .rating-button { transition: transform .18s ease, box-shadow .18s ease, background-color .18s ease, border-color .18s ease; }
 .reveal-button, .primary-button { min-height: 50px; border: 1px solid #254c35; border-radius: var(--xl-button-radius); background: var(--xl-brand); box-shadow: var(--xl-button-shadow); font-size: 14px; letter-spacing: .01em; }
 .reveal-button:hover:not(:disabled), .primary-button:hover:not(:disabled) { background: var(--xl-brand-hover); transform: translateY(-2px); box-shadow: var(--xl-button-shadow-hover); }
@@ -751,6 +793,7 @@ button:focus-visible { outline: 3px solid #d6a24d; outline-offset: 3px; }
 .completion-stats strong small { margin-left: 3px; font: 600 11px/1 'Noto Sans SC', 'Microsoft YaHei', sans-serif; }
 .completion-stats span { color: #6b806d; font-size: 12px; }
 @media (max-width: 640px) {
+  .review-transition { min-height: 365px; }
   .study-page { padding: 14px 14px 60px; }
   .study-header { align-items: flex-start; flex-direction: column; gap: 4px; }
   .intro { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'title date' 'subtitle subtitle'; align-items: center; column-gap: 10px; row-gap: 6px; padding: 18px 0 20px; }
@@ -794,6 +837,7 @@ button:focus-visible { outline: 3px solid #d6a24d; outline-offset: 3px; }
   .study-page { padding-bottom: 120px; }
 }
 @media (prefers-reduced-motion: reduce) {
+  .transition-card-back, .transition-card-front, .transition-orbit, .transition-trail span { animation: none; }
   .echo-returned { animation: none; }
   .card-inner, .reveal-button, .primary-button, .text-button, .audio-button, .rating-button { transition: none; }
   .reveal-button:hover, .primary-button:hover, .text-button:hover, .rating-button:hover,
