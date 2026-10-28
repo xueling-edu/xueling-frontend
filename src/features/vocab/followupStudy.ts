@@ -6,6 +6,8 @@ export interface FollowupStudy {
   card: StudyQueueCard
   step: 'study' | 'context' | 'recall' | 'checked'
   confirmed: boolean
+  mode?: 'teaching' | 'revisit'
+  diagnosis?: 'meaning_slow' | 'context_unsure'
 }
 
 function storageKey(userId: string) {

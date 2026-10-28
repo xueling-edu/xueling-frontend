@@ -5,9 +5,14 @@
 
 import request from '@/utils/request'
 import type { ApiResponse } from '@/types/auth'
-import type { CreateWordBookDTO, WordDictionary, WordVO, WordBookVo, WordBookDetailVO, AddWordsToWordBookDTO, RemoveWordsFromWordBookDTO, WordFamilyNodeVO, TodayStudy, StudySettings, StudyStats, StudyDayStats, StudyCalendar, StudyReviewCount, StudyReviewResult, SubmitStudyReview, StudyFamiliarity, FamiliarityStage } from '@/features/vocab/types'
+import type { CreateWordBookDTO, WordDictionary, WordVO, WordBookVo, WordBookDetailVO, AddWordsToWordBookDTO, RemoveWordsFromWordBookDTO, WordFamilyNodeVO, TodayStudy, StudySettings, StudyStats, StudyDayStats, StudyCalendar, StudyReviewCount, StudyReviewResult, SubmitStudyReview, StudyFamiliarity, FamiliarityStage, StudyFollowup } from '@/features/vocab/types'
 
 export const getTodayStudy = (): Promise<ApiResponse<TodayStudy>> => request.get('/study/today')
+export const getStudyFollowups = (): Promise<ApiResponse<StudyFollowup[]>> => request.get('/study/followups')
+export const getStudyFollowupSummary = (): Promise<ApiResponse<{ passed: number; failed: number; skipped: number }>> =>
+  request.get('/study/followups/summary')
+export const recordStudyAction = (requestId: string, action: 'teaching' | 'revisit', result: string): Promise<ApiResponse<string>> =>
+  request.post(`/study/followups/${encodeURIComponent(requestId)}/actions`, { action, result })
 export const submitStudyReview = (data: SubmitStudyReview): Promise<ApiResponse<StudyReviewResult>> =>
   request.post('/study/reviews', data)
 export const getStudyStats = (): Promise<ApiResponse<StudyStats>> => request.get('/study/stats')

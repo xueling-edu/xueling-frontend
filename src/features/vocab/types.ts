@@ -81,11 +81,44 @@ export interface StudyQueueCard {
   meaning: string
   example?: string
   exampleTranslation?: string
+  coreMeaning?: string
+  contextSentence?: string
+  contextTranslation?: string
+  contextQuestion?: string
+  optionA?: string
+  optionB?: string
+  correctOption?: 'A' | 'B'
+  clueExplanation?: string
+  contentVersion?: string
   imageUrl?: string
   state: 'NEW' | 'LEARNING' | 'REVIEW' | 'RELEARNING'
   dueAt?: string
   version: number
   newCard: boolean
+}
+
+export interface StudyFollowup {
+  requestId: string
+  rating: number
+  newCard: boolean
+  laterCards: number
+  dueAt: string
+  teachingResult?: string | null
+  wordId: string
+  word: string
+  meaning: string
+  phonetic?: string
+  example?: string
+  exampleTranslation?: string
+  coreMeaning?: string
+  contextSentence?: string
+  contextTranslation?: string
+  contextQuestion?: string
+  optionA?: string
+  optionB?: string
+  correctOption?: 'A' | 'B'
+  clueExplanation?: string
+  contentVersion?: string
 }
 
 export interface TodayStudy {
