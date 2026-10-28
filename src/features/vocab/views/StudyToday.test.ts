@@ -64,7 +64,7 @@ describe('today study review recovery', () => {
   it('explains that a later review does not affect todays saved check-in', async () => {
     api.getTodayStudy.mockResolvedValueOnce({ code: 0, data: {
       dueCount: 0, newRemaining: 0, todayReviewed: 44, todayNew: 15,
-      checkedIn: true, nextDueAt: '2026-10-26T14:18:00Z', cards: []
+      checkedIn: true, nextDueAt: '2026-10-31T11:48:00Z', cards: []
     } })
     api.getWordBooks.mockResolvedValueOnce({ code: 0, data: [{ studyEnabled: true }] })
     const wrapper = mountStudy()
@@ -72,7 +72,28 @@ describe('today study review recovery', () => {
 
     expect(wrapper.find('.complete-panel h2').text()).toBe('今天的学习已完成')
     expect(wrapper.find('.complete-panel').text()).toContain('已自动打卡')
-    expect(wrapper.find('.complete-panel').text()).toContain('今天的打卡已保存')
+    expect(wrapper.find('.complete-panel .completion-eyebrow').text()).toContain('已打卡')
+    expect(wrapper.find('.complete-panel .next-review').text()).toContain('下一次复习')
+    expect(wrapper.find('.complete-panel .next-review small').text()).toBe('10月31日 · 周六 19:48')
+    wrapper.unmount()
+  })
+
+  it('keeps completion prominent when an echo is still waiting', async () => {
+    api.getWordBooks.mockResolvedValueOnce({ code: 0, data: [{ studyEnabled: true }] })
+    api.getTodayStudy.mockResolvedValueOnce({ code: 0, data: {
+      dueCount: 0, newRemaining: 0, todayReviewed: 3, todayNew: 3,
+      checkedIn: true, nextDueAt: '2099-01-01T00:00:00Z', cards: []
+    } })
+    api.getStudyFollowups.mockResolvedValueOnce({ code: 0, data: [{
+      ...card, requestId: crypto.randomUUID(), rating: 1, laterCards: 0,
+      teachingResult: 'done', dueAt: '2099-01-01T00:00:00Z'
+    }] })
+    const wrapper = mountStudy()
+    await flushPromises()
+
+    expect(wrapper.find('.complete-panel h2').text()).toBe('今天的学习已完成')
+    expect(wrapper.find('.echo-reminder').text()).toContain('1 个记忆回声待回访')
+    expect(wrapper.find('.complete-actions .primary-button').text()).toContain('查看成长日历')
     wrapper.unmount()
   })
 

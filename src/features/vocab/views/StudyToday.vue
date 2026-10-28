@@ -153,36 +153,39 @@
         </div>
       </section>
 
-      <section v-else class="state-panel complete-panel" :class="{ 'is-checked-in': today?.checkedIn }">
+      <section v-else class="state-panel complete-panel" :class="{ 'is-checked-in': today?.checkedIn, 'has-next-review': !!nextReviewDisplay }">
         <div class="completion-heading">
-          <div class="complete-mark" aria-hidden="true">{{ today?.checkedIn ? '✦' : '✓' }}</div>
+          <div class="complete-mark" aria-hidden="true">{{ today?.checkedIn ? '✦' : '↗' }}</div>
           <div class="completion-copy">
-            <span class="completion-eyebrow">{{ today?.checkedIn ? '今日学习 · 已打卡' : '今日学习 · 暂无卡片' }}</span>
-            <h2>{{ pendingEchoCount ? '今日正式回忆已完成，回声尚待时机' : today?.checkedIn ? '今天的学习已完成' : today?.todayReviewed ? '当前暂无可学卡片' : '暂时没有学习任务' }}</h2>
+            <span class="completion-eyebrow">{{ today?.checkedIn ? '今日目标达成 · 已打卡' : today?.todayReviewed ? '今日学习 · 暂歇' : '今日学习 · 等待开始' }}</span>
+            <h2>{{ today?.checkedIn ? '今天的学习已完成' : today?.todayReviewed ? '当前没有可学卡片' : '今天还没有可学单词' }}</h2>
             <p v-if="today?.checkedIn" class="check-in-note">已自动打卡，成长日历已点亮。</p>
-            <p v-if="pendingEchoCount">另有 {{ pendingEchoCount }} 个词等待隔开其他词后回访；若今天没有足够的词，请按下一次到期时间回来。</p>
-            <p v-else-if="today?.todayReviewed">今天已有学习记录，但打卡尚未确认。请检查新任务或稍后重试。</p>
-            <p v-else>完成一次正式学习评分后，当前可学任务清空时会自动打卡。</p>
+            <p v-else-if="today?.todayReviewed">今天已完成 {{ today.todayReviewed }} 次正式回忆，新的卡片会按计划出现。</p>
+            <p v-else>看看词书计划，或等下一张卡片到期。</p>
           </div>
         </div>
-        <div v-if="today?.nextDueAt" class="next-review">
+        <div v-if="pendingEchoCount" class="echo-reminder">
+          <span class="echo-reminder-symbol" aria-hidden="true">✧</span>
+          <p><strong>{{ pendingEchoCount }} 个记忆回声待回访</strong><span>隔开其他词后再回忆；本轮没有更多词时，按下一次到期时间回来。</span></p>
+        </div>
+        <div v-if="nextReviewDisplay" class="next-review">
           <span class="next-review-icon" aria-hidden="true">↻</span>
           <div>
             <span class="next-review-label">下一次复习</span>
-            <p>{{ formatDue(today.nextDueAt) }} 后可再复习。</p>
-            <small>{{ today.checkedIn ? '到时再来，今天的打卡已保存。' : '到时回来完成评分即可。' }}</small>
+            <p>{{ nextReviewDisplay.relative }}</p>
+            <small>{{ nextReviewDisplay.absolute }}</small>
           </div>
         </div>
         <p v-else-if="planState === 'unknown' && !today?.todayReviewed" class="completion-hint">尚未找到可学的单词，请检查词书计划或稍后重试。</p>
         <p v-else-if="today?.newRemaining && today.newRemaining > 0" class="completion-hint">当前启用的词书没有更多未学单词。</p>
         <div class="complete-actions">
           <button v-if="today?.checkedIn" class="primary-button" type="button" @click="router.push('/english/vocab/insights#growth-calendar')">查看成长日历 <span aria-hidden="true">↗</span></button>
-          <button v-else class="primary-button" type="button" @click="loadToday">检查新任务</button>
-          <button v-if="today?.checkedIn" class="text-button" type="button" @click="loadToday">检查新任务</button>
-          <button v-else class="text-button" type="button" @click="router.push('/english/vocab/insights#growth-calendar')">查看成长日历</button>
-          <button class="text-button" type="button" @click="router.push('/english/vocab')">管理词书</button>
+          <button v-else-if="today?.todayReviewed" class="primary-button" type="button" @click="router.push('/english/vocab/insights')">查看学习进度 <span aria-hidden="true">↗</span></button>
+          <button v-else class="primary-button" type="button" @click="router.push('/english/vocab')">管理词书 <span aria-hidden="true">↗</span></button>
+          <button class="text-button" type="button" @click="loadToday">检查新任务</button>
+          <button v-if="today?.todayReviewed" class="text-button" type="button" @click="router.push('/english/vocab')">管理词书</button>
         </div>
-        <div v-if="today" class="completion-stats" aria-label="今日学习概览">
+        <div v-if="today?.todayReviewed" class="completion-stats" aria-label="今日学习概览">
           <div><strong>{{ today.todayReviewed }}<small>次</small></strong><span>今日正式回忆</span></div>
           <div><strong>{{ followupSummary.passed }}<small>个</small></strong><span>本轮回访想起</span></div>
           <div><strong>{{ followupSummary.failed + followupSummary.skipped + pendingEchoCount }}<small>个</small></strong><span>仍需巩固</span></div>
@@ -254,6 +257,8 @@ const savingSettings = ref(false)
 const settingsDraft = ref<StudySettings | null>(null)
 const deviceTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai'
 const timeZone = ref(deviceTimeZone)
+const currentTime = ref(Date.now())
+let timeRefresh: ReturnType<typeof setInterval> | undefined
 const retentionPercent = computed({
   get: () => Math.round((settingsDraft.value?.desiredRetention ?? 0.9) * 100),
   set: value => { if (settingsDraft.value) settingsDraft.value.desiredRetention = value / 100 }
@@ -306,9 +311,28 @@ const displayedMeaningEntries = computed(() => {
       : entry.text
   }))
 })
-const dateLabel = computed(() => new Intl.DateTimeFormat('zh-CN', {
-  timeZone: timeZone.value, month: 'long', day: 'numeric', weekday: 'long'
-}).format(new Date()))
+const dateLabel = computed(() => {
+  const parts = new Intl.DateTimeFormat('zh-CN', {
+    timeZone: timeZone.value, month: 'numeric', day: 'numeric', weekday: 'long'
+  }).formatToParts(new Date())
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find(item => item.type === type)?.value ?? ''
+  return `${part('month')}月${part('day')}日 · ${part('weekday').replace('星期', '周')}`
+})
+const nextReviewDisplay = computed(() => {
+  if (!today.value?.nextDueAt) return null
+  const due = new Date(today.value.nextDueAt)
+  if (Number.isNaN(due.getTime())) return null
+  const parts = new Intl.DateTimeFormat('zh-CN', {
+    timeZone: timeZone.value, month: 'numeric', day: 'numeric', weekday: 'long',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+  }).formatToParts(due)
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find(item => item.type === type)?.value ?? ''
+  const absolute = `${part('month')}月${part('day')}日 · ${part('weekday').replace('星期', '周')} ${part('hour')}:${part('minute')}`
+  const minutes = Math.ceil((due.getTime() - currentTime.value) / 60_000)
+  const relative = minutes <= 0 ? '已到复习时间' : minutes < 60 ? `约 ${minutes} 分钟后` : minutes < 2_880
+    ? `约 ${Math.ceil(minutes / 60)} 小时后` : `约 ${Math.round(minutes / 1_440)} 天后`
+  return { absolute, relative }
+})
 const ratingOptions = [
   { value: 1, label: '忘记了', hint: '没想起或答错', className: 'again' },
   { value: 2, label: '很困难', hint: '费力但想对', className: 'hard' },
@@ -546,11 +570,8 @@ async function saveSettings() {
   }
 }
 
-function formatDue(value: string) {
-  return new Intl.DateTimeFormat('zh-CN', { timeZone: timeZone.value, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
-}
-
 onMounted(async () => {
+  timeRefresh = setInterval(() => { currentTime.value = Date.now() }, 60_000)
   window.addEventListener('keydown', handleKeydown)
   followup.value = restoreFollowup(userStore.userInfo?.id)
   pendingReview.value = restorePendingReview(userStore.userInfo?.id)
@@ -563,6 +584,7 @@ onMounted(async () => {
   void getStudySettings().then(response => { timeZone.value = response.data.timeZone }).catch(() => {})
 })
 onUnmounted(() => {
+  if (timeRefresh) clearInterval(timeRefresh)
   window.removeEventListener('keydown', handleKeydown)
   cancelEnglishWord()
 })
@@ -769,29 +791,51 @@ button:focus-visible { outline: 3px solid #d6a24d; outline-offset: 3px; }
 .echo-returned { animation: echo-return .35s ease-out both; }
 @keyframes echo-return { from { opacity: .65; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 .followup-example > span { color: #607b63; font-size: 12px; font-weight: 750; }
-.complete-panel { padding: 0; overflow: hidden; border-color: #d7e2d2; border-radius: 24px; background: #fffefa; box-shadow: 0 14px 36px #2946310d; text-align: left; }
-.complete-panel.is-checked-in { border-top: 4px solid #557c58; }
-.completion-heading { display: flex; align-items: flex-start; gap: 20px; padding: 34px 40px 0; }
-.complete-panel .complete-mark { flex: 0 0 54px; width: 54px; height: 54px; margin: 0; background: #e2eddf; color: #2f6845; font-size: 27px; }
+.complete-panel { position: relative; padding: 0; overflow: hidden; border-color: #d7e2d2; border-radius: 24px; background: #fffefa; box-shadow: 0 14px 36px #2946310d; text-align: left; }
+.complete-panel.has-next-review { display: grid; grid-template-columns: minmax(0, 1fr) 280px; grid-template-rows: auto auto 1fr auto; column-gap: 22px; }
+.has-next-review .completion-heading { grid-column: 1; grid-row: 1; padding-right: 0; }
+.has-next-review .echo-reminder, .has-next-review .completion-hint { grid-column: 1; grid-row: 2; margin-right: 0; }
+.has-next-review .next-review { grid-column: 2; grid-row: 1 / 4; align-self: stretch; flex-direction: column; gap: 16px; margin: 34px 34px 28px 0; padding: 22px; background: #f3f7ef; }
+.has-next-review .next-review-icon { flex: 0 0 36px; }
+.has-next-review .complete-actions { grid-column: 1; grid-row: 3; align-self: end; margin-right: 0; }
+.has-next-review .completion-stats { grid-column: 1 / -1; grid-row: 4; }
+.complete-panel.is-checked-in { border-color: #c4d9c2; background: radial-gradient(circle at 92% 0, #e7f1e3 0, #fffefa 42%); }
+.complete-panel.is-checked-in::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #46784e, #9dbd87 64%, #d8bd7a); }
+.completion-heading { display: flex; align-items: flex-start; gap: 20px; padding: 38px 40px 0; }
+.complete-panel .complete-mark { flex: 0 0 54px; width: 54px; height: 54px; margin: 0; background: #eef2e9; color: #5f7e62; font-size: 27px; }
+.complete-panel.is-checked-in .complete-mark { background: #d9ead5; color: #2d7044; box-shadow: 0 0 0 7px #e6f0e240; animation: completion-arrive .5s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes completion-arrive { from { transform: scale(.7) rotate(-16deg); opacity: .4; } to { transform: scale(1) rotate(0); opacity: 1; } }
 .completion-copy { min-width: 0; }
 .completion-eyebrow { display: block; margin: 0 0 6px; color: #5b8060; font-size: 11px; font-weight: 800; letter-spacing: .12em; }
 .complete-panel h2 { margin: 0 0 8px; color: #203c2b; font-size: clamp(27px, 3.5vw, 34px); line-height: 1.3; letter-spacing: -.03em; }
 .complete-panel p { margin: 0; color: #647968; font-size: 14px; line-height: 1.65; }
 .complete-panel .check-in-note { color: #3d7650 !important; font-weight: 650; }
+.echo-reminder { display: flex; align-items: flex-start; gap: 11px; margin: 25px 40px 0; padding: 12px 15px; border-left: 3px solid #c7d7bf; background: #f7f9f3; border-radius: 0 10px 10px 0; }
+.echo-reminder-symbol { color: #6e9471; font-size: 18px; line-height: 1.3; }
+.echo-reminder p { display: flex; flex-wrap: wrap; gap: 3px 9px; }
+.echo-reminder strong { color: #385e42; font-size: 13px; }
+.echo-reminder span:last-child { color: #708373; font-size: 12px; }
 .next-review { display: flex; align-items: flex-start; gap: 14px; margin: 26px 40px 0; padding: 16px 18px; border: 1px solid #e1e8dc; border-radius: 14px; background: #f5f7f0; }
 .next-review-icon { flex: 0 0 36px; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: #e7eee2; color: #4d7954; font-size: 22px; line-height: 1; }
 .next-review-label { display: block; margin: 0 0 2px; color: #6e876f; font-size: 11px; font-weight: 800; letter-spacing: .08em; }
-.complete-panel .next-review p { color: #284b34; font-size: 16px; font-weight: 700; }
-.next-review small { display: block; margin-top: 2px; color: #738676; font-size: 12px; line-height: 1.5; }
+.complete-panel .next-review p { color: #284b34; font: 700 21px/1.3 Georgia, 'Songti SC', serif; }
+.next-review small { display: block; margin-top: 4px; color: #667e69; font-size: 13px; line-height: 1.5; font-variant-numeric: tabular-nums; }
 .complete-panel .completion-hint { margin: 24px 40px 0; }
 .complete-panel .complete-actions { justify-content: flex-start; margin: 24px 40px 30px; }
 .complete-panel .complete-actions button { min-height: 46px; }
-.completion-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid #e1e8dc; background: #f1f5ed; }
-.completion-stats > div { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 0; padding: 17px 10px; border-right: 1px solid #dfe8d9; }
+.completion-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid #edf0e7; background: #fbfcf8; }
+.completion-stats > div { display: flex; flex-direction: row; align-items: baseline; justify-content: center; gap: 8px; min-width: 0; padding: 13px 8px; border-right: 1px solid #edf0e7; }
 .completion-stats > div:last-child { border-right: 0; }
-.completion-stats strong { order: 1; color: #244a32; font: 600 26px/1.1 Georgia, 'Songti SC', serif; font-variant-numeric: tabular-nums; }
-.completion-stats strong small { margin-left: 3px; font: 600 11px/1 'Noto Sans SC', 'Microsoft YaHei', sans-serif; }
-.completion-stats span { color: #6b806d; font-size: 12px; }
+.completion-stats strong { color: #45684b; font: 600 20px/1.1 Georgia, 'Songti SC', serif; font-variant-numeric: tabular-nums; }
+.completion-stats strong small { margin-left: 2px; font: 600 11px/1 'Noto Sans SC', 'Microsoft YaHei', sans-serif; }
+.completion-stats span { color: #637969; font-size: 12px; }
+@media (max-width: 760px) {
+  .complete-panel.has-next-review { display: block; }
+  .has-next-review .completion-heading { padding-right: 40px; }
+  .has-next-review .echo-reminder, .has-next-review .completion-hint { margin-right: 40px; }
+  .has-next-review .next-review { flex-direction: row; align-self: auto; gap: 14px; margin: 26px 40px 0; padding: 16px 18px; }
+  .has-next-review .complete-actions { margin-right: 40px; }
+}
 @media (max-width: 640px) {
   .review-transition { min-height: 365px; }
   .study-page { padding: 14px 14px 60px; }
@@ -816,27 +860,35 @@ button:focus-visible { outline: 3px solid #d6a24d; outline-offset: 3px; }
   .complete-actions { flex-direction: column; align-items: stretch; }
   .complete-actions button { width: 100%; }
   .complete-panel { border-radius: 20px; }
+  .has-next-review .completion-heading { padding-right: 20px; }
+  .has-next-review .echo-reminder, .has-next-review .completion-hint { margin-right: 20px; }
+  .has-next-review .next-review { gap: 10px; margin: 20px 20px 0; padding: 13px; }
+  .has-next-review .complete-actions { margin-right: 20px; }
   .completion-heading { gap: 13px; padding: 24px 20px 0; }
   .complete-panel .complete-mark { flex-basis: 44px; width: 44px; height: 44px; font-size: 23px; }
   .completion-eyebrow { margin-bottom: 5px; font-size: 10px; }
   .complete-panel h2 { margin-bottom: 7px; font-size: clamp(22px, 6vw, 28px); line-height: 1.35; }
   .complete-panel p { font-size: 13px; }
+  .echo-reminder { margin: 20px 20px 0; padding: 10px 12px; }
+  .echo-reminder p { display: block; }
+  .echo-reminder strong { display: block; }
   .next-review { gap: 10px; margin: 20px 20px 0; padding: 13px; }
   .next-review-icon { flex-basis: 32px; width: 32px; height: 32px; font-size: 20px; }
-  .complete-panel .next-review p { font-size: 14px; }
-  .next-review small { font-size: 11px; }
+  .complete-panel .next-review p { font-size: 19px; }
+  .next-review small { font-size: 12px; }
   .complete-panel .completion-hint { margin: 20px 20px 0; }
   .complete-panel .complete-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin: 20px 20px 22px; }
   .complete-panel .complete-actions button { width: 100%; min-height: 44px; padding: 9px 6px; font-size: 13px; }
   .complete-panel .complete-actions button:first-child { grid-column: 1 / -1; min-height: 48px; }
-  .completion-stats > div { padding: 14px 5px; }
-  .completion-stats strong { font-size: 22px; }
-  .completion-stats span { font-size: 11px; }
+  .completion-stats > div { flex-direction: column-reverse; align-items: center; gap: 4px; padding: 12px 5px; }
+  .completion-stats strong { font-size: 18px; }
+  .completion-stats span { font-size: 10px; }
 }
 @media (max-width: 360px) {
   .study-page { padding-bottom: 120px; }
 }
 @media (prefers-reduced-motion: reduce) {
+  .complete-panel.is-checked-in .complete-mark { animation: none; }
   .transition-card-back, .transition-card-front, .transition-orbit, .transition-trail span { animation: none; }
   .echo-returned { animation: none; }
   .card-inner, .reveal-button, .primary-button, .text-button, .audio-button, .rating-button { transition: none; }
