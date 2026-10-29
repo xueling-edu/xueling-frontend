@@ -290,7 +290,7 @@ import WordFamilyTree from '@/features/vocab/WordFamilyTree.vue'
 import { getWordsByIds, getWordFamily } from '@/features/vocab/api'
 import type { WordFamilyNodeVO } from '@/features/vocab/types'
 import { useReviewStore } from '@/features/vocab/reviewStore'
-import { bestEnglishVoice, speechErrorMessage } from '@/utils/wordSpeech'
+import { bestEnglishVoice, cancelEnglishWord, speakEnglishWord, speechErrorMessage } from '@/utils/wordSpeech'
 
 const router = useRouter()
 const route = useRoute()
@@ -425,6 +425,7 @@ const toggleAudio = () => {
     if (isPlaying.value) {
         cancelAudio()
     } else {
+        cancelAudio()
         // 去除 Markdown 标记和 HTML 标签，确保朗读纯文本
         const text = consolidationData.value.content
             .replace(/\*\*/g, '')
@@ -456,6 +457,7 @@ const toggleAudio = () => {
 }
 
 const cancelAudio = () => {
+    cancelEnglishWord()
     const synthesis = window.speechSynthesis
     if (synthesis && (audioPlayer.value || synthesis.speaking || synthesis.pending)) synthesis.cancel()
     isPlaying.value = false
@@ -706,47 +708,10 @@ const progressPercentage = computed(() => {
 
 const format = (percentage: number) => (percentage === 100 ? 'Finished' : `${percentage}%`)
 
-// 使用浏览器原生 Web Speech API 播放发音
 const playAudio = (text: string) => {
-  if (!window.speechSynthesis || typeof SpeechSynthesisUtterance === 'undefined') {
-      ElMessage.warning('当前浏览器不支持网页语音，请尝试系统浏览器')
-      return
-  }
-  // 播放前先取消之前的发音
   cancelAudio()
-  
-  const utterance = new SpeechSynthesisUtterance(text)
-  
-  // 关键修复：将 utterance 赋值给外部 ref，防止被浏览器垃圾回收导致无声
-  audioPlayer.value = utterance
-
-  // 尝试获取声音，如果列表为空（异步加载中），则不设置 voice，使用默认
-  const voice = getBestVoice()
-  if (voice) {
-      utterance.voice = voice
-  }
-  
-  utterance.lang = 'en-US' // 设置为美式英语
-  utterance.rate = 0.8 // 稍慢一点点，更清晰
-  
-  utterance.onend = () => {
-      audioPlayer.value = null
-  }
-  
-  utterance.onerror = (e) => {
-      console.error('Audio playback error:', e)
-      audioPlayer.value = null
-      if (e.error !== 'canceled' && e.error !== 'interrupted') {
-          ElMessage.warning(speechErrorMessage(e.error))
-      }
-  }
-
-  try {
-      window.speechSynthesis.speak(utterance)
-  } catch (error) {
-      console.error('Audio playback error:', error)
-      audioPlayer.value = null
-      ElMessage.warning('发音播放失败，请检查设备声音设置')
+  if (!speakEnglishWord(text, message => ElMessage.warning(message))) {
+    ElMessage.warning('当前浏览器不支持网页语音，请尝试系统浏览器')
   }
 }
 
