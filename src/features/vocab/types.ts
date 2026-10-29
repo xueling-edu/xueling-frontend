@@ -41,7 +41,7 @@ export interface WordDictionary {
   word: string         // 单词
   meaning: string      // 释义
   translations?: { pos: string; meanings: string[] }[]
-  source?: 'ECDICT' | 'AI' | 'AI_ENRICHED'
+  source?: 'ECDICT' | 'AI' | 'AI_ENRICHED' | 'MANUAL'
   phonetic: string     // 音标
   example?: string     // 英文例句
   exampleTranslation?: string // 例句中文翻译

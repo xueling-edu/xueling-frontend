@@ -9,9 +9,14 @@ export interface Feedback {
   content: string
   sourcePage?: string
   contextWord?: string
+  wordId?: string
+  observedContent?: string
+  suggestedContent?: string
   contact?: string
   status: FeedbackStatus
   adminReply?: string
+  resolution?: 'FIXED' | 'NO_CHANGE' | 'UNRESOLVED'
+  revisionId?: string
   createTime: string
   updateTime: string
   repliedAt?: string
@@ -24,6 +29,9 @@ export interface CreateFeedback {
   content: string
   sourcePage?: string
   contextWord?: string
+  wordId?: string
+  observedContent?: string
+  suggestedContent?: string
   contact?: string
 }
 

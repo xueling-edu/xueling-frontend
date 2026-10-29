@@ -187,7 +187,7 @@ function formatDate(value: string) {
             <article v-for="item in mine" :key="item.id" class="feedback-item">
               <div class="item-meta"><span>{{ categoryLabels[item.category] }}</span><time>{{ formatDate(item.createTime) }}</time></div>
               <p>{{ item.content }}</p>
-              <div class="item-bottom"><span class="status" :class="item.status.toLowerCase()">{{ statusLabels[item.status] }}</span><small>#{{ item.id }}</small></div>
+              <div class="item-bottom"><span class="status" :class="item.status.toLowerCase()">{{ item.resolution === 'FIXED' ? '词条已修正' : item.resolution === 'NO_CHANGE' ? '核实后无需修改' : statusLabels[item.status] }}</span><small>#{{ item.id }}</small></div>
               <div v-if="item.adminReply" class="reply"><strong>学灵的回复</strong><p>{{ item.adminReply }}</p></div>
             </article>
             <el-button v-if="mineHasMore" :loading="mineLoading" @click="loadMine()">加载更多</el-button>

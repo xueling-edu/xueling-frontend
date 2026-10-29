@@ -305,6 +305,9 @@
             resize="none"
           />
         </el-form-item>
+        <el-form-item label="建议的正确内容（可选）">
+          <el-input v-model="feedbackForm.suggestion" type="textarea" :rows="2" :maxlength="2000" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="feedbackVisible = false">取消</el-button>
@@ -360,7 +363,8 @@ const submittingFeedback = ref(false)
 const feedbackForm = reactive({
   requestId: createRequestId(),
   type: '',
-  content: ''
+  content: '',
+  suggestion: ''
 })
 
 const feedbackTypes = [
@@ -414,6 +418,7 @@ const handleFeedback = () => {
   feedbackForm.requestId = createRequestId()
   feedbackForm.type = ''
   feedbackForm.content = ''
+  feedbackForm.suggestion = ''
   feedbackVisible.value = true
 }
 
@@ -438,6 +443,12 @@ const submitFeedback = async () => {
       content: feedbackForm.content.trim(),
       sourcePage: route.path,
       contextWord: currentResult.value?.word,
+      wordId: currentResult.value?.id,
+      observedContent: (feedbackForm.type === 'meaning'
+        ? currentResult.value?.translations.map(item => `${item.pos} ${item.meanings.join('；')}`).join('\n')
+        : feedbackForm.type === 'sound' ? currentResult.value?.phonetic
+          : currentResult.value?.examples?.map(item => `${item.en}\n${item.zh}`).join('\n'))?.slice(0, 2000),
+      suggestedContent: feedbackForm.suggestion.trim() || undefined,
     })
     submittingFeedback.value = false
     feedbackVisible.value = false

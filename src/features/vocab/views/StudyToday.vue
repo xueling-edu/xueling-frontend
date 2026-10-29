@@ -81,6 +81,7 @@
                     {{ expandedMeaning ? '收起释义' : '展开完整释义' }} <span aria-hidden="true">{{ expandedMeaning ? '↑' : '↓' }}</span>
                   </button>
                 </div>
+                <button class="text-button" type="button" @click="openIssue">内容有误？反馈这张卡片</button>
                 <details v-if="followup && currentCard.contextSentence" class="example-disclosure followup-example">
                   <summary>查看例句{{ followup.rating === 3 ? '与译文' : '线索与译文' }}</summary>
                   <div class="example"><p>{{ currentCard.contextSentence }}</p><p v-if="currentCard.contextTranslation">{{ currentCard.contextTranslation }}</p></div>
@@ -193,6 +194,7 @@
       </section>
     </div>
 
+    <WordIssueDialog v-if="issueTarget" :target="issueTarget" @close="issueTarget = null" />
     <el-dialog v-model="settingsOpen" title="学习设置" width="min(92vw, 440px)">
       <el-form v-if="settingsDraft" label-position="top">
         <el-form-item label="每天最多学习新词">
@@ -229,6 +231,8 @@ import type { FollowupStudy } from '@/features/vocab/followupStudy'
 import { createReviewRequestId } from '@/features/vocab/requestId'
 import { useUserStore } from '@/stores/user'
 import PageBreadcrumb from '@/components/PageBreadcrumb.vue'
+import WordIssueDialog from '@/features/feedback/WordIssueDialog.vue'
+import type { CorrectionTarget } from '@/features/feedback/WordIssueDialog.vue'
 import { cancelEnglishWord, speakEnglishWord } from '@/utils/wordSpeech'
 
 const router = useRouter()
@@ -253,6 +257,7 @@ const actionSaving = ref(false)
 const actionError = ref('')
 const shownAt = ref(Date.now())
 const settingsOpen = ref(false)
+const issueTarget = ref<CorrectionTarget | null>(null)
 const savingSettings = ref(false)
 const settingsDraft = ref<StudySettings | null>(null)
 const deviceTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai'
@@ -264,6 +269,14 @@ const retentionPercent = computed({
   set: value => { if (settingsDraft.value) settingsDraft.value.desiredRetention = value / 100 }
 })
 const currentCard = computed<StudyQueueCard | null>(() => followup.value?.card ?? today.value?.cards[0] ?? null)
+function openIssue() {
+  if (!currentCard.value) return
+  issueTarget.value = {
+    wordId: currentCard.value.wordId, word: currentCard.value.word,
+    meaning: currentCard.value.meaning, phonetic: currentCard.value.phonetic,
+    example: currentCard.value.example, exampleTranslation: currentCard.value.exampleTranslation,
+  }
+}
 const cardRevealed = computed(() => followup.value
   ? followup.value.mode === 'revisit' ? followup.value.step !== 'recall'
     : !(followup.value.rating === 2 && followup.value.diagnosis === 'context_unsure'
@@ -409,7 +422,7 @@ async function loadToday() {
 function reveal() { revealed.value = true }
 
 function handleKeydown(event: KeyboardEvent) {
-  if (event.altKey || event.ctrlKey || event.metaKey || settingsOpen.value || loading.value || pendingReview.value) return
+  if (event.altKey || event.ctrlKey || event.metaKey || settingsOpen.value || issueTarget.value || loading.value || pendingReview.value) return
   const target = event.target
   if (target instanceof HTMLElement && (target.closest('button, input, textarea, select, [contenteditable="true"]'))) return
   if (!currentCard.value) return

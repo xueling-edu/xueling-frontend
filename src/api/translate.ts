@@ -36,6 +36,7 @@ export const translateText = async (text: string): Promise<ApiResponse<Translate
       
       // 将 WordDictionary 转换为 TranslateResult 格式
       const result: TranslateResult = {
+        id: wordData.id,
         word: wordData.word,
         phonetic: wordData.phonetic,
         translations,

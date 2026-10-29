@@ -118,6 +118,7 @@
                 </button>
                 <div class="word-actions">
                   <button type="button" class="audio-button" :aria-label="'播放 ' + word.word + ' 的读音'" @click="playWordAudio(word.word)">♫</button>
+                  <button type="button" class="remove-button" :aria-label="'反馈 ' + word.word + ' 的内容问题'" @click="issueTarget = { wordId: word.id, word: word.word, meaning: word.meaning, phonetic: word.phonetic, example: word.example, exampleTranslation: word.exampleTranslation }">纠错</button>
                   <button v-if="bookType !== 'SYSTEM'" type="button" class="remove-button" :aria-label="'从词书移除 ' + word.word" @click="deleteWord(word)">移除</button>
                 </div>
               </li>
@@ -154,6 +155,7 @@
       </div>
     </div>
 
+    <WordIssueDialog v-if="issueTarget" :target="issueTarget" @close="issueTarget = null" />
     <el-dialog v-model="dialogVisible" title="批量添加单词" width="min(92vw, 600px)" align-center :close-on-click-modal="false" @closed="resetDialog">
       <div v-if="!isAnalyzed" class="batch-step">
         <p>输入要添加的英文单词，使用逗号、中文逗号或换行分隔。一次最多 20 词。</p>
@@ -195,6 +197,8 @@
 </template>
 
 <script setup lang="ts">
+import WordIssueDialog from '@/features/feedback/WordIssueDialog.vue'
+import type { CorrectionTarget } from '@/features/feedback/WordIssueDialog.vue'
 import { computed, ref, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -206,6 +210,7 @@ import { cancelEnglishWord, speakEnglishWord } from '@/utils/wordSpeech'
 
 const route = useRoute()
 const router = useRouter()
+const issueTarget = ref<CorrectionTarget | null>(null)
 const reviewStore = useReviewStore()
 const bookId = computed(() => String(route.params.id || ''))
 const bookName = ref('词书详情')
