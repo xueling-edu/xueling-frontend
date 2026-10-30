@@ -207,6 +207,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { matchWords, getWordBookDetail, addWordsToBook, removeWordsFromBook, setStudyBookEnabled } from '@/features/vocab/api'
 import type { WordDictionary, WordVO } from '@/features/vocab/types'
 import { useReviewStore } from '@/features/vocab/reviewStore'
+import { useUserStore } from '@/stores/user'
 import PageBreadcrumb from '@/components/PageBreadcrumb.vue'
 import { cancelEnglishWord, speakEnglishWord } from '@/utils/wordSpeech'
 
@@ -214,6 +215,7 @@ const route = useRoute()
 const router = useRouter()
 const issueTarget = ref<CorrectionTarget | null>(null)
 const reviewStore = useReviewStore()
+const userStore = useUserStore()
 const bookId = computed(() => String(route.params.id || ''))
 const bookName = ref('词书详情')
 const bookType = ref<'SYSTEM' | 'USER'>('USER')
@@ -345,7 +347,7 @@ onUnmounted(cancelEnglishWord)
 
 function startReviewWithWords(list: WordVO[]) {
   if (list.length < 5 || list.length > 10) return
-  reviewStore.setReviewData(list.map(word => word.id), bookName.value)
+  reviewStore.setReviewData(list.map(word => word.id), bookName.value, userStore.userInfo?.id)
   reviewDialogVisible.value = false
   void router.push('/english/vocab/review/' + bookId.value)
 }

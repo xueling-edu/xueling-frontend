@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { UserInfo, UserVO } from '@/types/auth'
 import { useTokenStore } from './token'
+import { useReviewStore } from '@/features/vocab/reviewStore'
 import { getUserInfo, logout as logoutApi, updateAvatar as updateAvatarApi, updateProfile as updateProfileApi } from '@/api/auth'
 import type { UserDTO } from '@/types/auth'
 
@@ -92,6 +93,9 @@ export const useUserStore = defineStore(
         console.error('登出 API 调用失败:', error)
         // 即使 API 调用失败，也继续清除本地数据
       } finally {
+        const reviewStore = useReviewStore()
+        reviewStore.restoreReviewData(userInfo.value?.id)
+        reviewStore.clearReviewData()
         // 清除用户信息
         clearUserInfo()
         

@@ -39,8 +39,8 @@
           <button v-if="canRefreshAfterError" class="text-button" type="button" :disabled="saving" @click="refreshAfterConflict">同步最新学习计划</button>
         </div>
       </section>
-      <div v-else-if="loadError && !followup" class="state-panel">
-        <h2>暂时无法读取学习计划</h2>
+      <div v-else-if="loadError" class="state-panel" role="alert">
+        <h2>{{ followup ? '暂时无法同步巩固任务' : '暂时无法读取学习计划' }}</h2>
         <p>{{ loadError }}</p>
         <button class="primary-button" type="button" @click="loadToday">重新加载</button>
       </div>

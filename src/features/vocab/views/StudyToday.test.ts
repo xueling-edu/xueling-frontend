@@ -346,6 +346,20 @@ describe('today study review recovery', () => {
     wrapper.unmount()
   })
 
+  it('blocks a stored follow-up when the server cannot confirm its current state', async () => {
+    sessionStorage.setItem('study.followup.7', JSON.stringify({
+      requestId: 'saved-review', rating: 1, card, step: 'study', confirmed: true
+    }))
+    api.getStudyFollowups.mockRejectedValueOnce(new Error('offline'))
+
+    const wrapper = mountStudy()
+    await flushPromises()
+    expect(wrapper.find('.state-panel[role="alert"] h2').text()).toBe('暂时无法同步巩固任务')
+    expect(wrapper.find('.session').exists()).toBe(false)
+    expect(wrapper.find('.state-panel button').text()).toBe('重新加载')
+    wrapper.unmount()
+  })
+
   it('submits a rating on an HTTP LAN page without crypto.randomUUID', async () => {
     const getRandomValues = globalThis.crypto.getRandomValues.bind(globalThis.crypto)
     vi.stubGlobal('crypto', { getRandomValues })

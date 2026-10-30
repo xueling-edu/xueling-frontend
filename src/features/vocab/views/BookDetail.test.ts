@@ -15,6 +15,7 @@ const review = vi.hoisted(() => ({ setReviewData: vi.fn() }))
 
 vi.mock('@/features/vocab/api', () => api)
 vi.mock('@/features/vocab/reviewStore', () => ({ useReviewStore: () => review }))
+vi.mock('@/stores/user', () => ({ useUserStore: () => ({ userInfo: { id: 'user-7' } }) }))
 vi.mock('vue-router', () => ({
   useRoute: () => ({ params: { id: 'book-1' } }),
   useRouter: () => navigation
@@ -57,7 +58,7 @@ describe('word book detail', () => {
     }
     expect(wrapper.find('.selection-bar').text()).toContain('已选 5 / 10 词')
     await wrapper.find('.begin-practice').trigger('click')
-    expect(review.setReviewData).toHaveBeenCalledWith(['1', '51', '52', '53', '54'], '四级词汇')
+    expect(review.setReviewData).toHaveBeenCalledWith(['1', '51', '52', '53', '54'], '四级词汇', 'user-7')
     expect(navigation.push).toHaveBeenCalledWith('/english/vocab/review/book-1')
     wrapper.unmount()
   })

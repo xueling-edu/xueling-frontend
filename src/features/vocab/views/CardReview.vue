@@ -132,7 +132,7 @@
                     class="consolidate-btn" 
                     @click="startConsolidation"
                 >
-                    <el-icon><MagicStick /></el-icon> 故事巩固演示
+                    <el-icon><MagicStick /></el-icon> 回顾这组单词
                 </el-button>
             </div>
         </div>
@@ -143,39 +143,37 @@
             <!-- Top Bar -->
             <div class="overlay-header">
                 <div class="header-left">
-                    <div class="logo-text">⚡ 故事巩固演示</div>
+                    <div class="logo-text">⚡ 词汇回顾</div>
                 </div>
                 <div class="header-center">
-                    <h2 class="story-title-mini">{{ consolidationData.title }}</h2>
+                    <h2 class="story-title-mini">本组 {{ cards.length }} 词 · 自由练习</h2>
                 </div>
                 <div class="header-right">
-                    <el-button circle @click="showConsolidation = false">
+                    <el-button circle aria-label="关闭词汇回顾" @click="showConsolidation = false">
                         <el-icon><Close /></el-icon>
                     </el-button>
                 </div>
             </div>
 
             <!-- Main Content Area -->
-            <div class="cons-content-wrapper" v-if="!isGenerating">
-                <!-- Left: Story Reader -->
+            <div class="cons-content-wrapper">
+                <!-- Review every selected word without interpreting dictionary content as HTML. -->
                 <div class="cons-left-panel">
                     <div class="story-scroll-container">
-                        <div class="story-hero-image">
-                             <img :src="consolidationData.imageUrl" alt="Scene" />
-                             <div class="image-overlay-controls">
-                                 <el-button circle size="large" @click="toggleAudio" class="play-btn-overlay">
-                                     <el-icon v-if="isPlaying"><VideoPause /></el-icon>
-                                     <el-icon v-else><VideoPlay /></el-icon>
-                                 </el-button>
-                             </div>
+                        <div class="word-recap-intro">
+                          <h3>{{ isMasked ? '看释义，试着拼出单词' : '逐词回顾' }}</h3>
+                          <p>{{ isMasked ? '选择任意词条开始拼写。拼写练习不会改变今日学习计划。' : '这组单词都在下面。听读音、看释义后，可开启拼写练习。' }}</p>
                         </div>
-
-                        <div 
-                            class="story-text-body" 
-                            :class="{ 'mask-mode': isMasked }"
-                            v-html="highlightedContent"
-                            @click="handleWordClick"
-                        ></div>
+                        <ol class="recap-list">
+                          <li v-for="card in cards" :key="card.id" class="recap-item">
+                            <button type="button" class="recap-word" :aria-label="isMasked ? `拼写释义为 ${card.meaning} 的单词` : `播放 ${card.word} 的读音`" @click="selectRecapWord(card)">
+                              <span class="recap-index" aria-hidden="true">{{ String(cards.indexOf(card) + 1).padStart(2, '0') }}</span>
+                              <span>{{ isMasked ? '点击拼写' : card.word }}</span>
+                              <span v-if="wordStatusMap[card.word]?.mastered" aria-label="本轮拼写正确">✓</span>
+                            </button>
+                            <p>{{ card.meaning || '暂无释义' }}</p>
+                          </li>
+                        </ol>
                     </div>
                 </div>
 
@@ -184,9 +182,9 @@
                     <div class="tools-tabs">
                         <div class="tool-card">
                             <div class="tool-header">
-                                <h3><el-icon><Monitor /></el-icon> 学习看板</h3>
+                                <h3><el-icon><Monitor /></el-icon> 本轮拼写结果</h3>
                             </div>
-                            <!-- Word Mastery List -->
+                            <!-- Spelling results in this session -->
                             <div class="word-checklist">
                                 <div 
                                     v-for="card in cards" 
@@ -198,7 +196,7 @@
                                         <el-icon v-if="wordStatusMap[card.word]?.mastered" color="#67C23A"><Check /></el-icon>
                                         <div class="check-dot" v-else></div>
                                     </div>
-                                    <span class="check-word">{{ card.word }}</span>
+                                    <span class="check-word">{{ isMasked && !wordStatusMap[card.word]?.mastered ? `待拼写 · 第 ${cards.indexOf(card) + 1} 词` : card.word }}</span>
                                 </div>
                             </div>
                         </div>
@@ -217,6 +215,7 @@
                                 <el-input 
                                     v-model="spellingInput" 
                                     placeholder="输入单词..." 
+                                    aria-label="输入当前单词的英文拼写"
                                     @keyup.enter="checkSpelling"
                                     size="large"
                                     ref="spellingInputRef"
@@ -226,12 +225,12 @@
                                         <el-button @click="checkSpelling">确认</el-button>
                                     </template>
                                 </el-input>
-                                <div class="feedback-msg" :class="feedbackType" v-if="feedbackMsg">
+                                <div class="feedback-msg" :class="feedbackType" v-if="feedbackMsg" role="status" aria-live="polite">
                                     {{ feedbackMsg }}
                                 </div>
                             </div>
                             <div v-else class="empty-spelling">
-                                <p>👈 点击左侧文章中的空格 [ ] 开始拼写</p>
+                                <p>选择左侧任意词条开始拼写。</p>
                             </div>
                         </div>
                         </transition>
@@ -245,11 +244,11 @@
                                 @click="toggleMaskMode"
                             >
                                 <el-icon v-if="isMasked"><View /></el-icon>
-                                <span>{{ isMasked ? '退出挑战' : '开启填空模式' }}</span>
+                                <span>{{ isMasked ? '退出拼写练习' : '开始拼写练习' }}</span>
                             </el-button>
                              <div class="bottom-btns">
-                                <el-button size="default" @click="startConsolidation" round>
-                                    <el-icon><RefreshRight /></el-icon> 换每篇
+                                <el-button size="default" @click="resetSpelling" round>
+                                    <el-icon><RefreshRight /></el-icon> 重新练习
                                 </el-button>
                                 <el-button type="primary" size="default" @click="router.back()" round>完成</el-button>
                              </div>
@@ -258,23 +257,6 @@
                 </div>
             </div>
 
-            <div v-else class="loading-overlay">
-                 <div class="loading-content">
-                    <div class="loader-animation"></div>
-                    <p>正在生成个性化学习内容...</p>
-                 </div>
-            </div>
-
-            <!-- Floating Tooltip -->
-            <div 
-                v-if="activeTooltip.visible" 
-                class="word-tooltip glass-effect"
-                :style="{ left: activeTooltip.x + 'px', top: activeTooltip.y + 'px' }"
-            >
-                <div class="tooltip-word">{{ activeTooltip.word }}</div>
-                <div class="tooltip-meaning">{{ activeTooltip.meaning }}</div>
-                <div class="tooltip-arrow"></div>
-            </div>
         </div>
         </transition>
     </div>
@@ -284,17 +266,20 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Check, Close, Microphone, Trophy, MagicStick, Back, RefreshRight, VideoPlay, VideoPause, View, Hide, EditPen, Monitor, Service } from '@element-plus/icons-vue'
-import { ElMessage, ElNotification } from 'element-plus'
+import { Check, Close, Microphone, Trophy, MagicStick, Back, RefreshRight, View, EditPen, Monitor } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import WordFamilyTree from '@/features/vocab/WordFamilyTree.vue'
-import { getWordsByIds, getWordFamily } from '@/features/vocab/api'
+import { getWordBookDetail, getWordsByIds, getWordFamily } from '@/features/vocab/api'
 import type { WordFamilyNodeVO } from '@/features/vocab/types'
 import { useReviewStore } from '@/features/vocab/reviewStore'
-import { bestEnglishVoice, cancelEnglishWord, preloadEnglishWord, speakEnglishWord, speechErrorMessage } from '@/utils/wordSpeech'
+import { useUserStore } from '@/stores/user'
+import { cancelEnglishWord, preloadEnglishWord, speakEnglishWord } from '@/utils/wordSpeech'
 
 const router = useRouter()
 const route = useRoute()
 const reviewStore = useReviewStore()
+const userStore = useUserStore()
+reviewStore.restoreReviewData(userStore.userInfo?.id)
 
 const currentBookName = ref(reviewStore.bookName || 'CET-4 核心词')
 const isFlipped = ref(false)
@@ -306,13 +291,8 @@ const rememberedCount = ref(0)
 const forgottenCount = ref(0)
 let advanceTimer: ReturnType<typeof setTimeout> | undefined
 
-// AI 巩固相关状态
 const showConsolidation = ref(false)
-const isGenerating = ref(false)
 const isMasked = ref(false)
-const isPlaying = ref(false)
-const audioPlayer = ref<SpeechSynthesisUtterance | null>(null)
-const activeTooltip = ref({ x: 0, y: 0, visible: false, word: '', meaning: '' })
 
 // 新增交互状态
 const spellingInput = ref('')
@@ -321,194 +301,54 @@ const currentSpellingMeaning = ref('')
 const spellingInputRef = ref<any>(null)
 const feedbackMsg = ref('')
 const feedbackType = ref('')
-// 记录每个单词的掌握状态 (spelling correct)
+// This session's spelling result, separate from scheduled review progress.
 const wordStatusMap = ref<Record<string, { mastered: boolean }>>({})
 
-const consolidationData = ref({
-    title: '',
-    content: '',
-    imageUrl: ''
-})
-
-const startConsolidation = async () => {
-    showConsolidation.value = true
-    isGenerating.value = true
-    isMasked.value = false
-    currentSpellingWord.value = ''
-    wordStatusMap.value = {} // 重置状态
-    if (typeof cancelAudio === 'function') cancelAudio()
-    
-    // 模拟 AI 生成过程
-    setTimeout(() => {
-        generateMockStory()
-        isGenerating.value = false
-    }, 2000)
+function startConsolidation() {
+  showConsolidation.value = true
+  isMasked.value = false
+  resetSpelling()
 }
 
-const toggleMaskMode = () => {
-    isMasked.value = !isMasked.value
-    currentSpellingWord.value = '' 
-    activeTooltip.value.visible = false
-    if (isMasked.value) {
-        ElMessage.info('已开启拼写挑战模式，点击文中 [ ] 空格开始拼写')
-    }
+function resetSpelling() {
+  currentSpellingWord.value = ''
+  currentSpellingMeaning.value = ''
+  spellingInput.value = ''
+  feedbackMsg.value = ''
+  wordStatusMap.value = {}
+  cancelAudio()
 }
 
-const checkSpelling = () => {
-    if (!currentSpellingWord.value) return
-    
-    const input = spellingInput.value.trim().toLowerCase()
-    const target = currentSpellingWord.value.trim().toLowerCase()
-
-    if (input === target) {
-        feedbackMsg.value = '🎉 Correct! You marked it!'
-        feedbackType.value = 'success'
-        // 记录状态
-        wordStatusMap.value[currentSpellingWord.value] = { mastered: true }
-        // 播放提示音或特效（可选）
-        
-        // 延迟清空并关闭
-        setTimeout(() => {
-            spellingInput.value = ''
-            currentSpellingWord.value = ''
-            feedbackMsg.value = ''
-        }, 1200)
-    } else {
-        feedbackMsg.value = '❌ Try again...'
-        feedbackType.value = 'error'
-    }
+function toggleMaskMode() {
+  isMasked.value = !isMasked.value
+  currentSpellingWord.value = ''
+  currentSpellingMeaning.value = ''
+  spellingInput.value = ''
+  feedbackMsg.value = ''
 }
 
-const generateMockStory = () => {
-    const words = cards.value.map(c => c.word)
-    const topicWord = words[0] || 'Journey'
-    
-    consolidationData.value = {
-        title: `The ${topicWord} Adventure`,
-        content: `Once upon a time, there was a student who wanted to master English. 
-The journey was **${words[0] || 'ambiguous'}**, but the student was **${words[1] || 'benevolent'}** enough to help others along the way.
-Through **${words[2] || 'comprehensive'}** study and **${words[3] || 'diligence'}**, they became **${words[4] || 'eloquent'}** speakers.
-Eventually, they realized that every word has its own magic...`,
-        imageUrl: `https://picsum.photos/seed/${Date.now()}/600/300`
-    }
+function selectRecapWord(card: ReviewCard) {
+  if (!isMasked.value) {
+    playAudio(card.word)
+    return
+  }
+  currentSpellingWord.value = card.word
+  currentSpellingMeaning.value = card.meaning
+  spellingInput.value = ''
+  feedbackMsg.value = ''
+  void nextTick(() => spellingInputRef.value?.focus())
 }
 
-// 高亮单词处理：注入数据以支持交互
-const highlightedContent = computed(() => {
-    let content = consolidationData.value.content
-    
-    // 创建单词-释义映射表
-    const meaningMap = new Map(cards.value.map(c => [c.word.toLowerCase(), c.meaning]))
-
-    // 假设 AI 返回的内容中，关键词用 **word** 包裹
-    // 我们将其转换为带有 data 属性的 span
-    return content.replace(/\*\*(.*?)\*\*/g, (match, word) => {
-        const cleanWord = word.trim().replace(/[.,!?;:]/g, '') // 简单清理标点
-        const matchedCard = cards.value.find(c => c.word.toLowerCase() === cleanWord.toLowerCase())
-        const meaning = matchedCard ? matchedCard.meaning : '点击查看释义' // 降级处理
-        
-        return `<span class="highlight-word" data-word="${word}" data-meaning="${meaning}">${word}</span>`
-    })
-    .replace(/\n/g, '<br/>')
-})
-
-const getBestVoice = () => {
-    return bestEnglishVoice(window.speechSynthesis) ?? null
+function checkSpelling() {
+  if (!currentSpellingWord.value) return
+  const correct = spellingInput.value.trim().toLocaleLowerCase() === currentSpellingWord.value.toLocaleLowerCase()
+  feedbackType.value = correct ? 'success' : 'error'
+  feedbackMsg.value = correct ? '本轮拼写正确。' : '还没拼对，可以再试一次。'
+  if (correct) wordStatusMap.value[currentSpellingWord.value] = { mastered: true }
 }
 
-// 音频控制
-const toggleAudio = () => {
-    if (!window.speechSynthesis || typeof SpeechSynthesisUtterance === 'undefined') {
-        ElMessage.warning('当前浏览器不支持网页语音，请尝试系统浏览器')
-        return
-    }
-    if (isPlaying.value) {
-        cancelAudio()
-    } else {
-        cancelAudio()
-        // 去除 Markdown 标记和 HTML 标签，确保朗读纯文本
-        const text = consolidationData.value.content
-            .replace(/\*\*/g, '')
-            .replace(/<[^>]+>/g, '')
-            
-        const utterance = new SpeechSynthesisUtterance(text)
-        
-        // 尝试选择更有磁性的英语发音
-        const voice = getBestVoice()
-        if (voice) {
-            utterance.voice = voice
-        }
-
-        utterance.lang = 'en-US'
-        utterance.rate = 0.85 // 适中的语速，适合听力磨耳朵
-        utterance.pitch = 1
-        
-        utterance.onend = () => { isPlaying.value = false }
-        utterance.onerror = (e) => { 
-            console.error('Speech synthesis error:', e)
-            isPlaying.value = false 
-            if (e.error !== 'canceled' && e.error !== 'interrupted') ElMessage.warning(speechErrorMessage(e.error))
-        }
-        
-        window.speechSynthesis.speak(utterance)
-        isPlaying.value = true
-        audioPlayer.value = utterance
-    }
-}
-
-const cancelAudio = () => {
-    cancelEnglishWord()
-    const synthesis = window.speechSynthesis
-    if (synthesis && (audioPlayer.value || synthesis.speaking || synthesis.pending)) synthesis.cancel()
-    isPlaying.value = false
-    audioPlayer.value = null
-}
-
-// 单词点击交互（通过事件委托）
-const handleWordClick = (e: MouseEvent) => {
-    const target = e.target as HTMLElement
-    // 点击遮挡的单词
-    if (target.classList.contains('highlight-word')) {
-        const word = target.getAttribute('data-word') || ''
-        const meaning = target.getAttribute('data-meaning') || ''
-
-        // 如果是遮挡模式，点击触发拼写
-        if (isMasked.value) {
-            currentSpellingWord.value = word
-            currentSpellingMeaning.value = meaning
-            spellingInput.value = ''
-            feedbackMsg.value = ''
-            
-            // 自动聚焦输入框
-            nextTick(() => {
-                spellingInputRef.value?.focus()
-            })
-            return; 
-        }
-
-        // 常规模式：显示 Tooltip
-        const rect = target.getBoundingClientRect()
-        // const container = document.querySelector('.story-content') as HTMLElement
-        // 直接使用视口坐标（因為是 fixed overlay）
-        
-        activeTooltip.value = {
-            visible: true,
-            x: rect.left + rect.width / 2, 
-            y: rect.top, // 显示在上方
-            word: word,
-            meaning: meaning
-        }
-        
-        // 发音单词
-        playAudio(word)
-
-        // 3秒后自动消失
-        setTimeout(() => {
-            activeTooltip.value.visible = false
-        }, 3000)
-    } else {
-        activeTooltip.value.visible = false
-    }
+function cancelAudio() {
+  cancelEnglishWord()
 }
 
 onUnmounted(() => {
@@ -561,8 +401,17 @@ const loadData = async () => {
   if (ids) {
     isLoading.value = true
     try {
+      const requestedIds = ids.split(',').filter(Boolean)
+      const bookResponse = await getWordBookDetail(String(route.params.id))
+      if (bookResponse.code !== 0 || !bookResponse.data) throw new Error('当前词书无法访问，请返回词书重新选择。')
+      currentBookName.value = bookResponse.data.name || currentBookName.value
+      const availableIds = new Set((bookResponse.data.wordList || []).map(word => word.id))
+      if (requestedIds.length < 5 || requestedIds.length > 10 || requestedIds.some(id => !availableIds.has(id))) {
+        throw new Error('所选单词已不在当前词书中，请返回词书重新选择。')
+      }
       const res = await getWordsByIds(ids)
-      if (res.code === 0 && res.data?.length) {
+      if (res.code === 0 && res.data?.length === requestedIds.length
+        && res.data.every(item => requestedIds.includes(item.id))) {
         cards.value = res.data.map(item => ({
             id: item.id,
             word: item.word,
@@ -578,9 +427,9 @@ const loadData = async () => {
       } else {
         loadError.value = res.msg || '没有读取到练习单词，请重试。'
       }
-    } catch (error) {
+    } catch (error: any) {
        console.error(error)
-       loadError.value = '网络请求失败，请检查连接后重试。'
+       loadError.value = error?.message || '网络请求失败，请检查连接后重试。'
     } finally {
        isLoading.value = false
     }
@@ -1165,7 +1014,7 @@ function handleCardKeydown(event: KeyboardEvent) {
     gap: 30px;
 }
 
-/* 左侧：文章阅读区 */
+/* 左侧：本组单词回顾 */
 .cons-left-panel {
     flex: 1;
     padding: 20px;
@@ -1181,50 +1030,17 @@ function handleCardKeydown(event: KeyboardEvent) {
     width: 100%;
     max-width: 700px;
 }
+.word-recap-intro { padding: 22px 26px; border-radius: 16px; background: #fff; color: #2d4435; }
+.word-recap-intro h3 { margin: 0 0 7px; font-size: 23px; }
+.word-recap-intro p { margin: 0; color: #607364; line-height: 1.6; }
+.recap-list { display: grid; gap: 12px; margin: 18px 0 0; padding: 0; list-style: none; }
+.recap-item { padding: 16px 20px; border: 1px solid #dce5da; border-radius: 14px; background: #fff; }
+.recap-word { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 44px; padding: 5px 0; border: 0; background: transparent; color: #315c44; font: 700 23px Georgia, serif; text-align: left; cursor: pointer; }
+.recap-word:hover { color: #244a35; text-decoration: underline; }
+.recap-word:focus-visible { outline: 3px solid #d5a44e; outline-offset: 3px; border-radius: 6px; }
+.recap-index { color: #7d9581; font: 700 12px 'Noto Sans SC', sans-serif; }
+.recap-item p { margin: 6px 0 0 29px; color: #4b5d50; line-height: 1.6; overflow-wrap: anywhere; }
 
-.story-hero-image {
-    width: 100%;
-    height: 280px;
-    border-radius: 16px;
-    overflow: hidden;
-    margin-bottom: 30px;
-    position: relative;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.12);
-}
-.story-hero-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.image-overlay-controls {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 60px;
-    background: linear-gradient(to top, rgba(0,0,0,0.5), transparent);
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    padding: 0 20px;
-}
-.play-btn-overlay {
-    background: rgba(255, 255, 255, 0.9) !important;
-    border: none !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-}
-
-.story-text-body {
-    font-family: 'Georgia', serif;
-    font-size: 1.25rem;
-    line-height: 2;
-    color: #2d3748;
-    background: white;
-    padding: 40px;
-    border-radius: 16px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.04);
-}
 
 /* 右侧：交互工具区 */
 .cons-right-panel {
@@ -1356,89 +1172,6 @@ function handleCardKeydown(event: KeyboardEvent) {
     flex: 1;
 }
 
-/* 深度选择器用于 v-html 内容 */
-:deep(.highlight-word) {
-    color: #626aef;
-    font-weight: 700;
-    padding: 2px 6px;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s;
-    border-bottom: 2px solid rgba(98, 106, 239, 0.3);
-}
-
-:deep(.highlight-word:hover) {
-    background: rgba(98, 106, 239, 0.15);
-}
-
-/* 遮挡模式（挑战模式）核心样式 */
-.mask-mode :deep(.highlight-word) {
-    background-color: #e2e8f0;
-    color: transparent; /* 隐藏文字 */
-    border-bottom: 2px dashed #a0aec0;
-    border-radius: 6px;
-    min-width: 40px;
-    display: inline-block;
-    vertical-align: bottom;
-    margin: 0 2px;
-    user-select: none;
-}
-.mask-mode :deep(.highlight-word:hover) {
-    background-color: #cbd5e0;
-    border-color: #718096;
-    transform: translateY(-1px);
-}
-
-/* 单词 Tooltip 样式 */
-.word-tooltip {
-    position: fixed; /* Changed to fixed for overlay context */
-    background: rgba(44, 62, 80, 0.95);
-    color: #fff;
-    padding: 10px 16px;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    pointer-events: none;
-    transform: translate(-50%, -100%);
-    margin-top: -10px;
-    z-index: 3000;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-    text-align: center;
-    min-width: 120px;
-    backdrop-filter: blur(4px);
-    animation: fadeIn 0.2s ease-out;
-}
-.tooltip-word {
-    font-weight: 700;
-    margin-bottom: 4px;
-    color: #a0cfff;
-    font-size: 1rem;
-}
-.tooltip-arrow {
-    position: absolute;
-    bottom: -6px;
-    left: 50%;
-    margin-left: -6px;
-    border-width: 6px 6px 0;
-    border-style: solid;
-    border-color: rgba(44, 62, 80, 0.95) transparent transparent;
-}
-
-/* Loading Overlay */
-.loading-overlay {
-    position: absolute;
-    top: 60px;
-    left: 0;
-    width: 100%;
-    height: calc(100% - 60px);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background: rgba(255,255,255,0.5);
-}
-.loading-content {
-    text-align: center;
-    color: #606266;
-}
 
 /* Transitions */
 .fade-slide-enter-active,
@@ -1557,8 +1290,8 @@ function handleCardKeydown(event: KeyboardEvent) {
   .cons-content-wrapper { flex-direction: column; overflow-y: auto; padding: 12px; gap: 12px; }
   .cons-left-panel { flex: none; padding: 0; overflow: visible; }
   .story-scroll-container { max-width: none; overflow: visible; padding: 0; }
-  .story-hero-image { height: 160px; margin-bottom: 12px; }
-  .story-text-body { padding: 20px; font-size: 17px; }
+  .word-recap-intro { padding: 17px; }
+  .recap-item { padding: 12px 15px; }
   .cons-right-panel { width: 100%; padding: 15px; flex: none; }
   .overlay-header { padding: 0 12px; gap: 10px; }
   .story-title-mini { font-size: 13px; }
@@ -1569,6 +1302,6 @@ function handleCardKeydown(event: KeyboardEvent) {
 }
 @media (prefers-reduced-motion: reduce) {
   .flashcard, .action-btn, .fade-slide-enter-active, .fade-slide-leave-active { transition: none; }
-  .feedback-msg, .word-tooltip { animation: none; }
+  .feedback-msg { animation: none; }
 }
 </style>
