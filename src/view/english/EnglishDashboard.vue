@@ -106,6 +106,14 @@ onMounted(async () => {
             </div>
             <router-link class="module-link" to="/english/articles">浏览文章 <span aria-hidden="true">↗</span></router-link>
           </article>
+          <article class="module-card article-card">
+            <div class="module-icon" aria-hidden="true">✦</div>
+            <div class="module-body">
+              <h3>词汇语境练习</h3>
+              <p>选几个学过的词，读一篇为你生成的短文。</p>
+            </div>
+            <router-link class="module-link" to="/english/vocab/context">选择单词 <span aria-hidden="true">↗</span></router-link>
+          </article>
         </div>
       </section>
     </div>
