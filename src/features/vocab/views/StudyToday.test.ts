@@ -15,6 +15,7 @@ const api = vi.hoisted(() => ({
 }))
 
 vi.mock('@/features/vocab/api', () => api)
+vi.mock('@/api/translate', () => ({ translateText: vi.fn() }))
 vi.mock('@/stores/user', () => ({ useUserStore: () => ({ userInfo: { id: '7' } }) }))
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 

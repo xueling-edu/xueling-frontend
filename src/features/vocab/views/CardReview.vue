@@ -82,7 +82,8 @@
               </div>
               <div v-if="currentCard.exampleEn || currentCard.exampleCn" class="example-box">
                 <div class="example-item">
-                    <p class="example-en">{{ currentCard.exampleEn }}</p>
+                    <SelectionWordLookup v-if="isFlipped"><p class="example-en">{{ currentCard.exampleEn }}</p></SelectionWordLookup>
+                    <p v-else class="example-en">{{ currentCard.exampleEn }}</p>
                     <p class="example-cn">{{ currentCard.exampleCn }}</p>
                 </div>
               </div>
@@ -269,6 +270,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { Check, Close, Microphone, Trophy, MagicStick, Back, RefreshRight, View, EditPen, Monitor } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import WordFamilyTree from '@/features/vocab/WordFamilyTree.vue'
+import SelectionWordLookup from '@/components/SelectionWordLookup.vue'
 import { getWordBookDetail, getWordsByIds, getWordFamily } from '@/features/vocab/api'
 import type { WordFamilyNodeVO } from '@/features/vocab/types'
 import { useReviewStore } from '@/features/vocab/reviewStore'

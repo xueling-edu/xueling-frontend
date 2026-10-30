@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PageHeading from '@/components/PageHeading.vue'
+import SelectionWordLookup from '@/components/SelectionWordLookup.vue'
 import TopicPicker from '@/features/vocab/components/TopicPicker.vue'
 import { getStudyFamiliarity } from '@/features/vocab/api'
 import type { FamiliarityStage, StudyFamiliarityWord } from '@/features/vocab/types'
@@ -192,8 +193,10 @@ onMounted(async () => {
           <article class="reading-paper">
             <span class="eyebrow">READ IN CONTEXT</span>
             <h2>{{ article.title }}</h2>
-            <p class="reading-content"><template v-for="(part, index) in segments" :key="index"><button v-if="part.target" type="button" class="target-word" @click="activeWord = part.target">{{ part.text }}</button><span v-else>{{ part.text }}</span></template></p>
-            <p class="reading-hint">点击文中的目标词，查看它在本次练习中的含义。</p>
+            <SelectionWordLookup :protected-words="score ? [] : article.targets.map(target => target.word)">
+              <p class="reading-content"><template v-for="(part, index) in segments" :key="index"><button v-if="part.target" type="button" class="target-word" @click="score && (activeWord = part.target)">{{ part.text }}</button><span v-else>{{ part.text }}</span></template></p>
+            </SelectionWordLookup>
+            <p class="reading-hint">选中其他单词可直接查义；提交练习后可点击目标词核对含义。</p>
           </article>
           <aside class="word-sidebar">
             <div class="sidebar-heading"><span class="eyebrow">WORD NOTES</span><h3>这篇文章里的词</h3></div>

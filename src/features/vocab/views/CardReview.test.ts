@@ -6,6 +6,7 @@ import CardReview from './CardReview.vue'
 
 const api = vi.hoisted(() => ({ getWordBookDetail: vi.fn(), getWordsByIds: vi.fn(), getWordFamily: vi.fn() }))
 vi.mock('@/features/vocab/api', () => api)
+vi.mock('@/api/translate', () => ({ translateText: vi.fn() }))
 vi.mock('@/features/vocab/reviewStore', () => ({ useReviewStore: () => ({
   reviewIds: ['1', '2', '3', '4', '5'], bookName: '测试词书', restoreReviewData: vi.fn()
 }) }))

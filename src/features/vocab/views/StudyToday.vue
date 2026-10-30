@@ -83,12 +83,12 @@
                 </div>
                 <details v-if="followup && currentCard.contextSentence" class="example-disclosure followup-example">
                   <summary>查看例句{{ followup.rating === 3 ? '与译文' : '线索与译文' }}</summary>
-                  <div class="example"><p>{{ currentCard.contextSentence }}</p><p v-if="currentCard.contextTranslation">{{ currentCard.contextTranslation }}</p></div>
+                  <div class="example"><SelectionWordLookup><p>{{ currentCard.contextSentence }}</p></SelectionWordLookup><p v-if="currentCard.contextTranslation">{{ currentCard.contextTranslation }}</p></div>
                 </details>
                 <details v-else-if="currentCard.example" class="example-disclosure">
                   <summary>查看例句与译文</summary>
                   <div class="example">
-                    <p>{{ currentCard.example }}</p>
+                    <SelectionWordLookup><p>{{ currentCard.example }}</p></SelectionWordLookup>
                     <p v-if="currentCard.exampleTranslation">{{ currentCard.exampleTranslation }}</p>
                   </div>
                 </details>
@@ -233,6 +233,7 @@ import type { FollowupStudy } from '@/features/vocab/followupStudy'
 import { createReviewRequestId } from '@/features/vocab/requestId'
 import { useUserStore } from '@/stores/user'
 import PageBreadcrumb from '@/components/PageBreadcrumb.vue'
+import SelectionWordLookup from '@/components/SelectionWordLookup.vue'
 import WordIssueDialog from '@/features/feedback/WordIssueDialog.vue'
 import type { CorrectionTarget } from '@/features/feedback/WordIssueDialog.vue'
 import { cancelEnglishWord, preloadEnglishWord, speakEnglishWord } from '@/utils/wordSpeech'

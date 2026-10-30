@@ -160,6 +160,7 @@
         </div>
 
         <!-- 文章内容 -->
+        <SelectionWordLookup>
         <div class="article-body" :class="{ 'show-highlights': showHighlights, 'show-translation': showTranslateDrawer }">
           <div
             v-for="(paragraph, index) in parsedParagraphs"
@@ -220,6 +221,7 @@
             </div>
           </div>
         </div>
+        </SelectionWordLookup>
 
         <!-- 完成阅读按钮 -->
         <div class="finish-section" v-if="!isArticleReadComplete">
@@ -381,6 +383,7 @@ import { ElMessage } from 'element-plus'
 import { analyzeSentence, getArticleTranslation, getVocabularyPhrases } from '@/api/article'
 import { marked } from 'marked'
 import type { ArticleVO } from '@/types/article'
+import SelectionWordLookup from '@/components/SelectionWordLookup.vue'
 import './ArticleReader.css'
 
 interface Props {
