@@ -3,25 +3,48 @@
  * 提供翻译相关的状态管理和业务逻辑
  */
 
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { translateText } from '@/api/translate'
 import type { TranslateResult, TranslateHistory } from '@/types/translate'
+import { useUserStore } from '@/stores/user'
 
-const HISTORY_KEY = 'translate_history'
+const LEGACY_HISTORY_KEY = 'translate_history'
+const historyKey = (userId: string) => `xueling:translate-history:v1:${userId}`
 const MAX_HISTORY = 50
+const HISTORY_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000
+
+function validHistoryItem(value: unknown): value is TranslateHistory {
+  if (!value || typeof value !== 'object') return false
+  const item = value as Partial<TranslateHistory>
+  return typeof item.id === 'string' && typeof item.word === 'string'
+    && Number.isFinite(item.timestamp) && !!item.result
+    && typeof item.result.word === 'string' && Array.isArray(item.result.translations)
+}
 
 export function useTranslate() {
+  const userStore = useUserStore()
+  const userId = computed(() => userStore.userInfo?.id)
   const isTranslating = ref(false)
   const currentResult = ref<TranslateResult | null>(null)
   const error = ref<string>('')
   const history = ref<TranslateHistory[]>([])
 
-  // 从 localStorage 加载历史记录
-  const loadHistory = () => {
+  const loadHistory = (id?: string) => {
+    history.value = []
+    currentResult.value = null
+    if (!id) return
     try {
-      const stored = localStorage.getItem(HISTORY_KEY)
+      // 旧键没有用户归属，不能安全迁移到任何一个账号。
+      localStorage.removeItem(LEGACY_HISTORY_KEY)
+      const stored = localStorage.getItem(historyKey(id))
       if (stored) {
-        history.value = JSON.parse(stored)
+        const parsed: unknown = JSON.parse(stored)
+        const now = Date.now()
+        history.value = Array.isArray(parsed) ? parsed.filter(item =>
+          validHistoryItem(item) && item.timestamp <= now
+          && now - item.timestamp <= HISTORY_MAX_AGE_MS
+        ).slice(0, MAX_HISTORY) : []
+        if (history.value.length !== (Array.isArray(parsed) ? parsed.length : 0)) saveHistory(id)
       }
     } catch (e) {
       console.error('加载翻译历史失败:', e)
@@ -29,9 +52,10 @@ export function useTranslate() {
   }
 
   // 保存历史记录到 localStorage
-  const saveHistory = () => {
+  const saveHistory = (id = userId.value) => {
+    if (!id) return
     try {
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(history.value))
+      localStorage.setItem(historyKey(id), JSON.stringify(history.value))
     } catch (e) {
       console.error('保存翻译历史失败:', e)
     }
@@ -72,7 +96,9 @@ export function useTranslate() {
     currentResult.value = null
 
     try {
+      const requestUserId = userId.value
       const response = await translateText(text.trim())
+      if (requestUserId !== userId.value) return
       
       if (response.code === 0 && response.data) {
         currentResult.value = response.data
@@ -110,8 +136,7 @@ export function useTranslate() {
     return history.value.slice(0, 5)
   })
 
-  // 初始化时加载历史记录
-  loadHistory()
+  watch(userId, id => loadHistory(id), { immediate: true })
 
   return {
     isTranslating,

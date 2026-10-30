@@ -952,17 +952,16 @@ const error = ref<string>('')
 ```
 
 #### 状态持久化
-- 使用 localStorage 持久化状态
+- 登录资料以服务端为准，页面内使用 Pinia 状态；不要将访问令牌或用户资料写入 localStorage
+- 设备偏好可按用户 ID 存入 localStorage；仅需同标签页刷新恢复的临时步骤可存入 sessionStorage
 - 示例:
 ```typescript
 const setUserInfo = (info: UserInfo) => {
   userInfo.value = info
-  localStorage.setItem('user_info', JSON.stringify(info))
 }
 
 const clearUserInfo = () => {
   userInfo.value = null
-  localStorage.removeItem('user_info')
 }
 ```
 
@@ -1349,8 +1348,8 @@ export interface UserVO {
 #### 单行注释
 - 示例:
 ```typescript
-// 从 localStorage 恢复用户信息
-const storedUserInfo = localStorage.getItem('user_info')
+// 登录后从服务端恢复用户信息
+await userStore.fetchUserInfo()
 ```
 
 #### 多行注释

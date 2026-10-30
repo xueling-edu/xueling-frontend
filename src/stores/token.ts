@@ -7,7 +7,7 @@ export const useTokenStore = defineStore(
     'token',
     ()=>{
         // 清理旧版本持久化的令牌；新令牌只保存在当前页面内存中。
-        localStorage.removeItem('access_token')
+        try { localStorage.removeItem('access_token') } catch { /* Storage may be disabled. */ }
         const accessToken = ref('')
         let restored = false
         let restorePromise: Promise<boolean> | null = null
@@ -19,7 +19,7 @@ export const useTokenStore = defineStore(
         const removeToken = ()=>{
             accessToken.value = ''
             restored = true
-            localStorage.removeItem('access_token')
+            try { localStorage.removeItem('access_token') } catch { /* Memory token was still cleared. */ }
         }
         const restoreSession = (): Promise<boolean> => {
             if (accessToken.value) return Promise.resolve(true)

@@ -14,8 +14,10 @@ export const useUserStore = defineStore(
   'user',
   () => {
     // 用户资料由后端恢复，避免跨会话留下个人信息或过期的会员状态。
-    localStorage.removeItem('user_info')
-    localStorage.removeItem('user_vo')
+    try {
+      localStorage.removeItem('user_info')
+      localStorage.removeItem('user_vo')
+    } catch { /* Legacy cleanup must not prevent session initialization. */ }
     const userInfo = ref<UserInfo | null>(null)
     const userVO = ref<UserVO | null>(null)
 

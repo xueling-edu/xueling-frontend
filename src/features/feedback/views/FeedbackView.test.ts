@@ -61,6 +61,19 @@ describe('feedback view', () => {
     await flushPromises()
     expect((wrapper.get('#feedback-content').element as HTMLTextAreaElement).value).toBe('复习按钮无法点击')
     expect((wrapper.get('#feedback-contact').element as HTMLInputElement).value).toBe('test@example.com')
+    expect(JSON.parse(localStorage.getItem('xueling-feedback-draft:123')!).savedAt).toBeTypeOf('number')
+    wrapper.unmount()
+  })
+
+  it('removes an expired draft without restoring its contact details', async () => {
+    localStorage.setItem('xueling-feedback-draft:123', JSON.stringify({
+      savedAt: Date.now() - 8 * 24 * 60 * 60 * 1000,
+      form: { requestId: crypto.randomUUID(), category: 'FUNCTION_ISSUE', content: '旧草稿内容', contact: 'old@example.com' },
+    }))
+    const wrapper = mountView()
+    await flushPromises()
+    expect((wrapper.get('#feedback-content').element as HTMLTextAreaElement).value).toBe('')
+    expect(localStorage.getItem('xueling-feedback-draft:123')).toBeNull()
     wrapper.unmount()
   })
 })

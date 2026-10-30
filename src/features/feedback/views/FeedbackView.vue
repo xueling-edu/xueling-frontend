@@ -26,7 +26,9 @@ const placeholders: Record<FeedbackCategory, string> = {
   OTHER: '把你的想法写在这里，我们会认真看。',
   TRANSLATION: '请描述翻译问题。',
 }
-const draftKey = computed(() => `xueling-feedback-draft:${userStore.userInfo?.id ?? 'unknown'}`)
+const DRAFT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
+const userId = computed(() => userStore.userInfo?.id)
+const draftKey = computed(() => userId.value ? `xueling-feedback-draft:${userId.value}` : null)
 const form = reactive<CreateFeedback>({
   requestId: createRequestId(),
   category: 'FEATURE_IDEA',
@@ -43,26 +45,61 @@ const mineLoading = ref(false)
 const mineLoaded = ref(false)
 
 watch(form, () => {
-  if (submitting.value || receipt.value) return
-  localStorage.setItem(draftKey.value, JSON.stringify(form))
+  if (submitting.value || receipt.value || !draftKey.value) return
+  if (!form.content.trim() && !(form.contact ?? '').trim()) {
+    removeDraft()
+    return
+  }
+  try {
+    localStorage.setItem(draftKey.value, JSON.stringify({ savedAt: Date.now(), form }))
+  } catch { /* Keep the unsent draft in memory when storage is unavailable. */ }
 }, { deep: true })
 
-onMounted(async () => {
+function removeDraft() {
+  if (!draftKey.value) return
+  try { localStorage.removeItem(draftKey.value) } catch { /* The form remains usable. */ }
+}
+
+watch(userId, () => {
+  form.requestId = createRequestId()
+  form.category = 'FEATURE_IDEA'
+  form.content = ''
+  form.contact = ''
+  form.sourcePage = ''
+  receipt.value = null
+  mine.value = []
+  mineLoaded.value = false
+  if (!draftKey.value) return
   try {
     const raw = localStorage.getItem(draftKey.value)
     if (raw) {
-      const saved = JSON.parse(raw) as Partial<CreateFeedback>
-      if (saved.requestId && categories.some(item => item.value === saved.category)) {
+      const entry = JSON.parse(raw) as { savedAt?: number; form?: Partial<CreateFeedback> } & Partial<CreateFeedback>
+      // 旧版草稿已有用户专属键，首次读取时迁移并从此开始计算保留期。
+      const legacy = !('form' in entry)
+      const saved = legacy ? entry : entry.form
+      const savedAt = legacy ? Date.now() : entry.savedAt
+      if (!Number.isFinite(savedAt) || savedAt! > Date.now()
+        || Date.now() - savedAt! > DRAFT_MAX_AGE_MS || !saved
+        || typeof saved.requestId !== 'string'
+        || !categories.some(item => item.value === saved.category)) {
+        removeDraft()
+        return
+      }
+      if (saved) {
         form.requestId = saved.requestId
         form.category = saved.category!
         form.content = saved.content ?? ''
         form.contact = saved.contact ?? ''
         form.sourcePage = saved.sourcePage ?? ''
+        if (legacy) localStorage.setItem(draftKey.value, JSON.stringify({ savedAt, form }))
       }
     }
   } catch {
-    localStorage.removeItem(draftKey.value)
+    removeDraft()
   }
+}, { immediate: true })
+
+onMounted(() => {
   const from = route.query.from
   if (!form.sourcePage && typeof from === 'string' && from.startsWith('/') && !from.startsWith('//')) form.sourcePage = from
 })
@@ -88,7 +125,7 @@ async function submit() {
       sourcePage: form.sourcePage || undefined,
     })
     receipt.value = response.data
-    localStorage.removeItem(draftKey.value)
+    removeDraft()
     form.requestId = createRequestId()
     form.content = ''
     form.contact = ''
