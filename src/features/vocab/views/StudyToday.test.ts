@@ -162,6 +162,32 @@ describe('today study review recovery', () => {
     wrapper.unmount()
   })
 
+  it('prepares only the current and next card recordings', async () => {
+    const sources: string[] = []
+    class FakeAudio {
+      preload = ''
+      onerror: (() => void) | null = null
+      constructor(public src: string) { sources.push(src) }
+      load = vi.fn()
+    }
+    vi.stubGlobal('Audio', FakeAudio)
+    api.getTodayStudy.mockResolvedValueOnce({ code: 0, data: {
+      dueCount: 0, newRemaining: 3, todayReviewed: 0, todayNew: 0,
+      cards: [
+        { ...card, word: 'state' },
+        { ...card, wordId: '456', word: 'zebra' },
+        { ...card, wordId: '789', word: 'zone' }
+      ]
+    } })
+
+    const wrapper = mountStudy()
+    await flushPromises()
+    expect(sources).toHaveLength(2)
+    expect(sources[0]).toContain('state')
+    expect(sources[1]).toContain('zebra')
+    wrapper.unmount()
+  })
+
   it('lays out escaped multiline meanings as separate parts of speech', async () => {
     api.getTodayStudy.mockResolvedValueOnce({ code: 0, data: {
       dueCount: 1, newRemaining: 0, todayReviewed: 0, todayNew: 0,

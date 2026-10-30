@@ -325,7 +325,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, reactive } from 'vue'
+import { ref, onMounted, onUnmounted, reactive, watch } from 'vue'
 import { 
   Document, 
   Close, 
@@ -350,7 +350,7 @@ import { useTokenStore } from '@/stores/token'
 import { useRoute } from 'vue-router'
 import { createFeedback } from '@/features/feedback/api'
 import { createRequestId } from '@/utils/requestId'
-import { cancelEnglishWord, speakEnglishWord } from '@/utils/wordSpeech'
+import { cancelEnglishWord, preloadEnglishWord, speakEnglishWord } from '@/utils/wordSpeech'
 
 const tokenStore = useTokenStore()
 const route = useRoute()
@@ -385,6 +385,9 @@ const {
   clearHistory: clearHistoryFn,
   retranslate: retranslateFn
 } = useTranslate()
+watch(() => isOpen.value ? currentResult.value?.word : undefined, word => {
+  if (word) preloadEnglishWord(word)
+}, { immediate: true })
 
 // 单词本相关
 const addToBookVisible = ref(false)

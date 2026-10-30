@@ -3,6 +3,36 @@ import cet4AudioUrls from '@/assets/cet4-audio-urls.json'
 let activeUtterance: SpeechSynthesisUtterance | null = null
 let activeAudio: HTMLAudioElement | null = null
 const AUDIO_URLS: Record<string, string> = cet4AudioUrls
+const preloadedAudio = new Map<string, HTMLAudioElement>()
+const MAX_PRELOADED_AUDIO = 3
+
+function audioKey(word: string): string {
+  return word.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase()
+}
+
+/** Warm up only words currently on screen; browsers may still defer mobile media loading. */
+export function preloadEnglishWord(word: string): void {
+  const key = audioKey(word)
+  const url = AUDIO_URLS[key]
+  if (!url || typeof Audio === 'undefined' || preloadedAudio.has(key)) return
+
+  try {
+    const audio = new Audio(url)
+    audio.preload = 'auto'
+    audio.onerror = () => {
+      if (preloadedAudio.get(key) === audio) preloadedAudio.delete(key)
+    }
+    preloadedAudio.set(key, audio)
+    while (preloadedAudio.size > MAX_PRELOADED_AUDIO) {
+      const oldestKey = preloadedAudio.keys().next().value
+      if (!oldestKey) break
+      preloadedAudio.delete(oldestKey)
+    }
+    audio.load()
+  } catch {
+    preloadedAudio.delete(key)
+  }
+}
 
 export function bestEnglishVoice(synthesis: SpeechSynthesis): SpeechSynthesisVoice | undefined {
   const voices = synthesis.getVoices?.() ?? []
@@ -32,12 +62,12 @@ export function speechErrorMessage(error: string): string {
 
 /** Call directly from a click handler so mobile browsers retain user activation. */
 export function speakEnglishWord(word: string, onError?: (message: string) => void): boolean {
-  const key = word.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase()
+  const key = audioKey(word)
   const url = AUDIO_URLS[key]
   if (url && typeof Audio !== 'undefined') {
     try {
       cancelEnglishWord()
-      const audio = new Audio(url)
+      const audio = preloadedAudio.get(key) ?? new Audio(url)
       activeAudio = audio
       audio.onended = () => {
         if (activeAudio === audio) activeAudio = null
@@ -45,6 +75,7 @@ export function speakEnglishWord(word: string, onError?: (message: string) => vo
       audio.onerror = () => {
         if (activeAudio !== audio) return
         activeAudio = null
+        preloadedAudio.delete(key)
         if (!speakEnglishWordFallback(word, onError)) onError?.('在线录音和浏览器语音都无法播放')
       }
       void audio.play().catch(() => audio.onerror?.(new Event('error')))

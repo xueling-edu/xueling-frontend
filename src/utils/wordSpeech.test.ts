@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { bestEnglishVoice, cancelEnglishWord, speakEnglishWord } from './wordSpeech'
+import { bestEnglishVoice, cancelEnglishWord, preloadEnglishWord, speakEnglishWord } from './wordSpeech'
 
 class FakeUtterance {
   lang = ''
@@ -98,5 +98,29 @@ describe('English word playback', () => {
     expect(speakEnglishWord('state')).toBe(true)
     await vi.waitFor(() => expect(speak).toHaveBeenCalledOnce())
     expect(speak.mock.calls[0]![0]).toMatchObject({ text: 'state', lang: 'en-US' })
+  })
+
+  it('reuses audio started when the word appeared', () => {
+    const instances: FakeAudio[] = []
+    class FakeAudio {
+      preload = ''
+      currentTime = 0
+      onerror: (() => void) | null = null
+      onended: (() => void) | null = null
+      load = vi.fn()
+      play = vi.fn().mockResolvedValue(undefined)
+      pause = vi.fn()
+      constructor(public src: string) { instances.push(this) }
+    }
+    vi.stubGlobal('Audio', FakeAudio)
+
+    preloadEnglishWord('zebra')
+    expect(instances).toHaveLength(1)
+    expect(instances[0]!.preload).toBe('auto')
+    expect(instances[0]!.load).toHaveBeenCalledOnce()
+
+    expect(speakEnglishWord('zebra')).toBe(true)
+    expect(instances).toHaveLength(1)
+    expect(instances[0]!.play).toHaveBeenCalledOnce()
   })
 })

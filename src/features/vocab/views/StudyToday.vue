@@ -220,7 +220,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getStudyFollowups, getStudyFollowupSummary, recordStudyAction, getStudySettings, getTodayStudy, getWordBooks, submitStudyReview, updateStudySettings } from '@/features/vocab/api'
@@ -233,7 +233,7 @@ import { useUserStore } from '@/stores/user'
 import PageBreadcrumb from '@/components/PageBreadcrumb.vue'
 import WordIssueDialog from '@/features/feedback/WordIssueDialog.vue'
 import type { CorrectionTarget } from '@/features/feedback/WordIssueDialog.vue'
-import { cancelEnglishWord, speakEnglishWord } from '@/utils/wordSpeech'
+import { cancelEnglishWord, preloadEnglishWord, speakEnglishWord } from '@/utils/wordSpeech'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -269,6 +269,14 @@ const retentionPercent = computed({
   set: value => { if (settingsDraft.value) settingsDraft.value.desiredRetention = value / 100 }
 })
 const currentCard = computed<StudyQueueCard | null>(() => followup.value?.card ?? today.value?.cards[0] ?? null)
+// The API returns an ordered queue. A follow-up can temporarily replace its first card.
+const nextCardWord = computed(() => currentCard.value
+  ? today.value?.cards.find(card => card.wordId !== currentCard.value?.wordId)?.word
+  : undefined)
+watch([() => currentCard.value?.word, nextCardWord], ([word, nextWord]) => {
+  if (word) preloadEnglishWord(word)
+  if (nextWord) preloadEnglishWord(nextWord)
+}, { immediate: true })
 function openIssue() {
   if (!currentCard.value) return
   issueTarget.value = {

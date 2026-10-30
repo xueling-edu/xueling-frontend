@@ -282,7 +282,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Check, Close, Microphone, Trophy, MagicStick, Back, RefreshRight, VideoPlay, VideoPause, View, Hide, EditPen, Monitor, Service } from '@element-plus/icons-vue'
 import { ElMessage, ElNotification } from 'element-plus'
@@ -290,7 +290,7 @@ import WordFamilyTree from '@/features/vocab/WordFamilyTree.vue'
 import { getWordsByIds, getWordFamily } from '@/features/vocab/api'
 import type { WordFamilyNodeVO } from '@/features/vocab/types'
 import { useReviewStore } from '@/features/vocab/reviewStore'
-import { bestEnglishVoice, cancelEnglishWord, speakEnglishWord, speechErrorMessage } from '@/utils/wordSpeech'
+import { bestEnglishVoice, cancelEnglishWord, preloadEnglishWord, speakEnglishWord, speechErrorMessage } from '@/utils/wordSpeech'
 
 const router = useRouter()
 const route = useRoute()
@@ -674,6 +674,9 @@ const currentCard = computed(() => {
     if (currentIndex.value >= cards.value.length) return null;
     return cards.value[currentIndex.value];
 })
+watch(() => currentCard.value?.word, word => {
+    if (word) preloadEnglishWord(word)
+}, { immediate: true })
 
 // 根据当前卡片自动切换数据
 const currentWordFamily = computed(() => {
