@@ -89,6 +89,18 @@ describe('word book detail', () => {
     wrapper.unmount()
   })
 
+  it('opens content feedback for the word directly from its row', async () => {
+    const wrapper = mountBook()
+    await flushPromises()
+    const firstRow = wrapper.findAll('.word-row')[0]!
+    expect(firstRow.find('.more-button').exists()).toBe(false)
+    await firstRow.find('.issue-link').trigger('click')
+    expect(wrapper.findComponent({ name: 'WordIssueDialog' }).props('target')).toMatchObject({
+      wordId: '1', word: 'word1', meaning: '释义1'
+    })
+    wrapper.unmount()
+  })
+
   it('hides all meanings for recall and reveals only the chosen word', async () => {
     const wrapper = mountBook()
     await flushPromises()

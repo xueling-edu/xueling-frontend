@@ -112,13 +112,15 @@
                   <strong>{{ word.word }}</strong>
                 </label>
                 <span class="phonetic">{{ word.phonetic ? '/' + word.phonetic + '/' : '—' }}</span>
-                <button type="button" class="meaning-cell" :class="{ concealed: !isMeaningVisible(word.id) }" :aria-label="(isMeaningVisible(word.id) ? '隐藏 ' : '展示 ') + word.word + ' 的释义'" :aria-pressed="isMeaningVisible(word.id)" @click="toggleMeaning(word.id)">
-                  <span v-if="isMeaningVisible(word.id)" class="meaning">{{ word.meaning || '暂无释义' }}</span>
-                  <span v-else class="meaning-placeholder"><span aria-hidden="true">✦</span> 点击揭晓释义</span>
-                </button>
+                <div class="word-content">
+                  <button type="button" class="meaning-cell" :class="{ concealed: !isMeaningVisible(word.id) }" :aria-label="(isMeaningVisible(word.id) ? '隐藏 ' : '展示 ') + word.word + ' 的释义'" :aria-pressed="isMeaningVisible(word.id)" @click="toggleMeaning(word.id)">
+                    <span v-if="isMeaningVisible(word.id)" class="meaning">{{ word.meaning || '暂无释义' }}</span>
+                    <span v-else class="meaning-placeholder"><span aria-hidden="true">✦</span> 点击揭晓释义</span>
+                  </button>
+                  <button type="button" class="issue-link" :aria-label="'反馈 ' + word.word + ' 的内容问题'" @click="issueTarget = { wordId: word.id, word: word.word, meaning: word.meaning, phonetic: word.phonetic, example: word.example, exampleTranslation: word.exampleTranslation }">反馈内容问题</button>
+                </div>
                 <div class="word-actions">
                   <button type="button" class="audio-button" :aria-label="'播放 ' + word.word + ' 的读音'" @click="playWordAudio(word.word)">♫</button>
-                  <button type="button" class="remove-button" :aria-label="'反馈 ' + word.word + ' 的内容问题'" @click="issueTarget = { wordId: word.id, word: word.word, meaning: word.meaning, phonetic: word.phonetic, example: word.example, exampleTranslation: word.exampleTranslation }">纠错</button>
                   <button v-if="bookType !== 'SYSTEM'" type="button" class="remove-button" :aria-label="'从词书移除 ' + word.word" @click="deleteWord(word)">移除</button>
                 </div>
               </li>
@@ -509,17 +511,21 @@ button:focus-visible, input:focus-visible { outline: 3px solid #bd914d; outline-
 .word-select strong { font: 600 18px Georgia, serif; color: #254330; overflow-wrap: anywhere; }
 .phonetic { color: #718175; font-size: 13px; overflow-wrap: anywhere; }
 .meaning { color: #3c5140; font-size: 14px; line-height: 1.55; white-space: pre-line; overflow-wrap: anywhere; }
-.meaning-cell { display: block; box-sizing: border-box; min-width: 0; width: 100%; padding: 7px 9px; margin: -7px -9px; border: 1px solid transparent; border-radius: 7px; background: transparent; text-align: left; }
+.word-content { min-width: 0; padding: 7px 0; }
+.meaning-cell { display: block; box-sizing: border-box; min-width: 0; width: 100%; padding: 7px 9px; margin: -7px -9px 0; border: 1px solid transparent; border-radius: 7px; background: transparent; text-align: left; }
 .meaning-cell:hover { border-color: #dce8d7; background: #f0f6ed; }
 .meaning-cell.concealed { border: 1px dashed #c8d8c4; background: #f5f8f1; }
 .meaning-cell.concealed:hover { border-color: #83a287; background: #eaf2e7; }
 .meaning-placeholder { color: #698570; font-size: 12px; font-weight: 700; letter-spacing: .025em; }
 .meaning-placeholder span { margin-right: 5px; color: #ae8b4a; }
+.issue-link { display: block; min-height: 32px; margin: 5px 0 -7px; padding: 5px 9px; border: 0; background: transparent; color: #718476; font-size: 11px; text-align: left; cursor: pointer; visibility: hidden; }
+.word-row:hover .issue-link, .word-row:focus-within .issue-link { visibility: visible; }
+.issue-link:hover { color: #315b40; text-decoration: underline; }
 .word-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
 .audio-button { width: 44px; height: 44px; border: 1px solid #cbdacb; color: #315b40; background: #f0f6ef; border-radius: 50%; font-size: 17px; }
 .audio-button:hover { background: #dcebdc; }
-.remove-button { border: 0; background: transparent; color: #9c5f53; padding: 8px; font-size: 12px; }
-.remove-button:hover { text-decoration: underline; }
+.remove-button { border: 0; background: transparent; color: #718476; padding: 8px; font-size: 12px; }
+.remove-button:hover { color: #9c5f53; text-decoration: underline; }
 .pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 22px; border-top: 1px solid #e7ebdf; color: var(--muted); font-size: 13px; }
 .pagination div { display: flex; gap: 8px; }
 .page-jump { display: flex; align-items: center; gap: 6px; }
@@ -586,6 +592,9 @@ button:focus-visible, input:focus-visible { outline: 3px solid #bd914d; outline-
 .group-list button:hover:not(:disabled) { background: #e9f1e7; }
 .group-list button span:first-child { display: flex; flex-direction: column; gap: 4px; }
 .group-list small { color: var(--muted); }
+@media (hover: none) {
+  .issue-link { visibility: visible; }
+}
 @media (max-width: 800px) {
   .book-hero { grid-template-columns: 190px minmax(0, 1fr); gap: 36px; }
   .cover { min-height: 275px; }
@@ -611,10 +620,11 @@ button:focus-visible, input:focus-visible { outline: 3px solid #bd914d; outline-
   .word-select { grid-column: 1; }
   .phonetic { grid-column: 1; padding-left: 31px; }
   .meaning { grid-column: 1 / -1; padding-left: 31px; grid-row: 3; }
-  .meaning-cell { grid-column: 1 / -1; grid-row: 3; width: calc(100% - 31px); margin: 0 0 0 31px; padding: 7px 9px; }
+  .word-content { grid-column: 1 / -1; grid-row: 3; margin-left: 31px; }
+  .meaning-cell { margin: 0; padding: 7px 9px; }
+  .issue-link { margin: 1px 0 -7px; }
   .meaning-cell .meaning { padding-left: 0; }
   .word-actions { grid-column: 2; grid-row: 1 / 3; }
-  .remove-button { display: block; }
   .pagination { flex-wrap: wrap; }
   .practice-note { align-items: start; flex-direction: column; gap: 8px; }
   .practice-note button { padding-left: 0; }

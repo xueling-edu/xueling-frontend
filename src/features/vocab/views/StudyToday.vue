@@ -81,7 +81,6 @@
                     {{ expandedMeaning ? '收起释义' : '展开完整释义' }} <span aria-hidden="true">{{ expandedMeaning ? '↑' : '↓' }}</span>
                   </button>
                 </div>
-                <button class="text-button" type="button" @click="openIssue">内容有误？反馈这张卡片</button>
                 <details v-if="followup && currentCard.contextSentence" class="example-disclosure followup-example">
                   <summary>查看例句{{ followup.rating === 3 ? '与译文' : '线索与译文' }}</summary>
                   <div class="example"><p>{{ currentCard.contextSentence }}</p><p v-if="currentCard.contextTranslation">{{ currentCard.contextTranslation }}</p></div>
@@ -93,6 +92,9 @@
                     <p v-if="currentCard.exampleTranslation">{{ currentCard.exampleTranslation }}</p>
                   </div>
                 </details>
+                <div class="answer-footer">
+                  <button class="issue-link" type="button" :aria-label="`反馈 ${currentCard.word} 的内容问题`" @click="openIssue">反馈内容问题</button>
+                </div>
               </div>
             </div>
           </div>
@@ -775,6 +777,10 @@ button:focus-visible { outline: 3px solid #d6a24d; outline-offset: 3px; }
 .phonetic { color: #647b69; }
 .example-disclosure { margin-top: 0; }
 .example-disclosure summary { margin: 0; }
+.answer-footer { display: flex; justify-content: flex-end; margin-top: 12px; }
+.issue-link { min-height: 40px; padding: 8px 0 8px 12px; border: 0; background: transparent; color: #778a79; font-size: 12px; font-weight: 500; cursor: pointer; }
+.issue-link:hover { color: #315b40; text-decoration: underline; }
+.issue-link:focus-visible { outline: 3px solid #bd914d; outline-offset: 3px; border-radius: 3px; }
 .study-actions { padding: 22px 0 8px; }
 .reveal-button { min-width: 260px; }
 .rate-prompt { margin-bottom: 12px; font-size: 15px; }
