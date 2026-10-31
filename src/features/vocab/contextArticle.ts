@@ -30,6 +30,15 @@ export interface ContextAttemptResult {
   totalCount: number
 }
 
+export interface ContextAttemptHistory {
+  attemptCount: number
+  latest: (ContextAttemptResult & {
+    wordIds: string[]
+    answers: string[]
+    createTime: string
+  }) | null
+}
+
 export const generateContextArticle = (data: { requestId: string; wordIds: string[]; topic: string | null }): Promise<ApiResponse<ContextArticle>> =>
   request.post('/vocab-context/articles', data)
 
@@ -39,5 +48,8 @@ export const getContextArticle = (id: string): Promise<ApiResponse<ContextArticl
 export const listContextArticles = (): Promise<ApiResponse<ContextArticleSummary[]>> =>
   request.get('/vocab-context/articles')
 
-export const submitContextAttempt = (id: string, answers: string[]): Promise<ApiResponse<ContextAttemptResult>> =>
-  request.post(`/vocab-context/articles/${encodeURIComponent(id)}/attempts`, { answers })
+export const submitContextAttempt = (id: string, wordIds: string[], answers: string[]): Promise<ApiResponse<ContextAttemptResult>> =>
+  request.post(`/vocab-context/articles/${encodeURIComponent(id)}/attempts`, { wordIds, answers })
+
+export const getContextAttemptHistory = (id: string): Promise<ApiResponse<ContextAttemptHistory>> =>
+  request.get(`/vocab-context/articles/${encodeURIComponent(id)}/attempts`)
