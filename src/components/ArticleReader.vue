@@ -2653,8 +2653,22 @@ onUnmounted(() => {
 
 /* 响应式设计 */
 @media (max-width: 768px) {
+  .article-reader {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
   .reader-main {
     flex-direction: column;
+    flex: none;
+    min-height: auto;
+    overflow: visible;
+  }
+
+  .article-main {
+    min-height: auto;
+    overflow: visible;
   }
 
   .article-toolbar {
