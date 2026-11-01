@@ -1,10 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { getStudyFamiliarity, getStudySettings, getWordBooks } from '@/features/vocab/api'
 import type { FamiliarityStage, StudyFamiliarity, StudyFamiliarityWord, WordBookVo } from '@/features/vocab/types'
 
 const books = ref<WordBookVo[]>([])
 const bookId = ref('')
+const bookOpen = ref(false)
+const bookQuery = ref('')
+const bookFilter = ref<HTMLElement | null>(null)
+const bookTrigger = ref<HTMLButtonElement | null>(null)
+const bookSearch = ref<HTMLInputElement | null>(null)
 const stage = ref<FamiliarityStage>('ALL')
 const page = ref(1)
 const data = ref<StudyFamiliarity | null>(null)
@@ -20,6 +25,8 @@ const segments = computed(() => [
 ])
 const totalPages = computed(() => Math.max(1, Math.ceil((data.value?.wordCount ?? 0) / (data.value?.pageSize ?? 20))))
 const selectedStageLabel = computed(() => stage.value === 'ALL' ? '全部已学单词' : segments.value.find(item => item.key === stage.value)?.label)
+const selectedBookLabel = computed(() => books.value.find(book => book.id === bookId.value)?.name ?? '全部词书')
+const filteredBooks = computed(() => books.value.filter(book => book.name.toLocaleLowerCase().includes(bookQuery.value.trim().toLocaleLowerCase())))
 
 function stageLabel(value: StudyFamiliarityWord['stage']) {
   return segments.value.find(item => item.key === value)?.label ?? value
@@ -53,10 +60,30 @@ function selectStage(value: FamiliarityStage) {
   void load()
 }
 
-function selectBook(event: Event) {
-  bookId.value = (event.target as HTMLSelectElement).value
+function selectBook(value: string) {
+  bookOpen.value = false
+  bookQuery.value = ''
+  void nextTick(() => bookTrigger.value?.focus())
+  if (bookId.value === value) return
+  bookId.value = value
   page.value = 1
   void load()
+}
+
+function toggleBook() {
+  bookOpen.value = !bookOpen.value
+  bookQuery.value = ''
+  if (bookOpen.value) void nextTick(() => bookSearch.value?.focus())
+}
+
+function closeBook(restoreFocus = false) {
+  bookOpen.value = false
+  bookQuery.value = ''
+  if (restoreFocus) void nextTick(() => bookTrigger.value?.focus())
+}
+
+function closeBookOnOutsideClick(event: MouseEvent) {
+  if (bookOpen.value && !bookFilter.value?.contains(event.target as Node)) closeBook()
 }
 
 function goToPage(value: number) {
@@ -65,10 +92,12 @@ function goToPage(value: number) {
 }
 
 onMounted(() => {
+  document.addEventListener('click', closeBookOnOutsideClick)
   void load()
   void getWordBooks().then(response => { books.value = response.data ?? [] }).catch(() => {})
   void getStudySettings().then(response => { timeZone.value = response.data.timeZone }).catch(() => {})
 })
+onUnmounted(() => document.removeEventListener('click', closeBookOnOutsideClick))
 </script>
 
 <template>
@@ -79,12 +108,22 @@ onMounted(() => {
         <h2 id="familiarity-title">这些词，记得怎么样？</h2>
         <p>按记忆阶段查看已学单词；移出计划的词仍保留记录，但暂停复习。词书筛选只作用于本区。</p>
       </div>
-      <label class="book-filter" title="仅筛选记忆地图，下面的每日记录仍汇总全部词书">词书
-        <select :value="bookId" aria-label="筛选词书" @change="selectBook">
-          <option value="">全部词书</option>
-          <option v-for="book in books" :key="book.id" :value="book.id">{{ book.name }}</option>
-        </select>
-      </label>
+      <div ref="bookFilter" class="book-filter" title="仅筛选记忆地图，下面的每日记录仍汇总全部词书" @keydown.esc.stop="closeBook(true)">
+        <span id="book-filter-label">词书</span>
+        <button ref="bookTrigger" type="button" class="book-trigger" aria-labelledby="book-filter-label book-filter-value"
+          aria-controls="book-filter-panel" :aria-expanded="bookOpen" @click="toggleBook">
+          <span id="book-filter-value" class="book-trigger-value" :title="selectedBookLabel">{{ selectedBookLabel }}</span><span class="book-chevron" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none"><path d="m4.5 6.25 3.5 3.5 3.5-3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
+        <div v-if="bookOpen" id="book-filter-panel" class="book-panel" aria-label="选择词书">
+          <label class="book-search"><span class="sr-only">搜索词书</span><svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="7.75" cy="7.75" r="4.75" stroke="currentColor" stroke-width="1.6"/><path d="m11.4 11.4 3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input ref="bookSearch" v-model="bookQuery" type="search" placeholder="搜索词书" autocomplete="off"></label>
+          <div class="book-options">
+            <button v-if="!bookQuery.trim()" type="button" :aria-pressed="!bookId" @click="selectBook('')"><span>全部词书</span><svg v-if="!bookId" class="book-check" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="m3.5 9 3.7 3.7 7.3-7.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button v-for="book in filteredBooks" :key="book.id" type="button" :aria-pressed="bookId === book.id" :title="book.name" @click="selectBook(book.id)"><span>{{ book.name }}</span><svg v-if="bookId === book.id" class="book-check" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="m3.5 9 3.7 3.7 7.3-7.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <p v-if="!filteredBooks.length" class="book-empty">没有匹配的词书</p>
+          </div>
+          <p class="book-panel-note">仅筛选记忆地图</p>
+        </div>
+      </div>
     </div>
 
     <div v-if="loading && !data" class="panel-state" role="status">正在整理记忆地图…</div>
@@ -150,8 +189,12 @@ onMounted(() => {
 .familiarity h2 { margin:8px 0 7px; font:650 clamp(25px,3vw,34px)/1.2 var(--xl-font-display); }
 .familiarity h3 { margin:6px 0 0; font:650 21px/1.2 var(--xl-font-display); }
 .familiarity-heading p,.metric-note,.attention-intro { margin:0; color:var(--xl-ink-soft); font-size:13px; line-height:1.65; }
-.book-filter { display:flex; align-items:center; gap:10px; color:var(--xl-ink-soft); font-size:12px; white-space:nowrap; }
-.book-filter select { min-height:42px; max-width:200px; padding:0 13px; border:1px solid var(--xl-border); border-radius:10px; background:var(--xl-surface); color:var(--xl-ink); font:inherit; font-weight:700; }
+.book-filter { position:relative; display:flex; align-items:center; gap:10px; color:var(--xl-ink-soft); font-size:12px; white-space:nowrap; }
+.book-trigger { display:flex; align-items:center; justify-content:space-between; gap:13px; width:205px; min-height:44px; padding:0 13px 0 15px; border:1px solid #cddccf; border-radius:11px; background:var(--xl-surface); color:var(--xl-ink); box-shadow:0 2px 0 #e6ece3; font-size:13px; font-weight:750; cursor:pointer; transition:border-color .18s ease, background-color .18s ease, box-shadow .18s ease; }.book-trigger:hover,.book-trigger[aria-expanded="true"] { border-color:#86a58b; background:#fbfdf9; box-shadow:0 0 0 3px #e8f0e7; }.book-trigger-value { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.book-chevron { flex:none; color:#6a8b70; font-size:20px; line-height:1; transition:transform .18s ease; }.book-trigger[aria-expanded="true"] .book-chevron { transform:rotate(180deg); }
+.book-panel { position:absolute; right:0; top:calc(100% + 9px); z-index:6; width:min(288px, calc(100vw - 48px)); padding:10px; border:1px solid #ceddcb; border-radius:14px; background:var(--xl-surface); box-shadow:0 16px 38px #1d3c2a26; animation:book-panel-in .18s ease-out; }.book-search { display:flex; align-items:center; gap:7px; height:38px; padding:0 10px; border:1px solid #dce5d9; border-radius:9px; background:#f7f9f4; color:#78927b; font-size:20px; }.book-search:focus-within { border-color:#7c9d81; box-shadow:0 0 0 2px #e7f0e4; }.book-search input { min-width:0; width:100%; border:0; outline:0; background:transparent; color:var(--xl-ink); font-size:12px; }.book-options { max-height:232px; overflow:auto; padding:7px 0 2px; }.book-options button { display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; min-height:39px; padding:7px 10px; border:0; border-radius:8px; background:transparent; color:var(--xl-ink); text-align:left; font-size:12px; cursor:pointer; }.book-options button > span:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.book-options button > span:last-child { color:#3d8050; font-size:15px; }.book-options button:hover,.book-options button[aria-pressed="true"] { background:#eaf2e7; }.book-options button[aria-pressed="true"] { font-weight:800; }.book-empty { padding:10px; color:var(--xl-ink-soft); font-size:12px; }.book-panel-note { margin:5px 3px 0; padding:9px 7px 2px; border-top:1px solid #e7ede4; color:#7c8c7d; font-size:11px; }.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+@keyframes book-panel-in { from { opacity:0; transform:translateY(-5px); } to { opacity:1; transform:translateY(0); } }
+.book-chevron { display:grid; place-items:center; width:24px; height:24px; border:1px solid #d6e5d5; border-radius:8px; background:#eaf2e8; }.book-chevron svg { width:15px; height:15px; }.book-trigger:hover .book-chevron, .book-trigger[aria-expanded="true"] .book-chevron { background:#deebdc; border-color:#bad1b8; }
+.book-search > svg { flex:none; width:17px; height:17px; }.book-check { flex:none; width:17px; height:17px; color:#3d8050; }
 .panel-state { padding:26px; border:1px solid var(--xl-border); border-radius:14px; background:var(--xl-surface); color:var(--xl-ink-soft); }
 .panel-state button,.all-button { border:0; background:none; color:var(--xl-brand); font-weight:800; cursor:pointer; }
 .memory-overview { display:grid; grid-template-columns:165px minmax(0,1fr) 170px; overflow:hidden; border:1px solid #c8d8c5; border-radius:17px; background:#fbfcf8; box-shadow:0 12px 32px #224a2710; }
@@ -182,6 +225,6 @@ onMounted(() => {
 .empty-note,.attention-empty { padding:20px 0; color:var(--xl-ink-soft); font-size:13px; line-height:1.6; }.pager { display:flex; align-items:center; justify-content:end; gap:14px; padding-top:16px; border-top:1px solid var(--xl-border); color:var(--xl-ink-soft); font-size:12px; }.pager button { min-height:32px; padding:0 10px; border:1px solid var(--xl-border); border-radius:7px; background:var(--xl-surface); color:var(--xl-brand); cursor:pointer; }.pager button:disabled { opacity:.45; cursor:default; }
 .attention-panel { background:#f9faf5; }.attention-intro { margin:9px 0 15px; }.attention-panel li { display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:64px; border-top:1px solid var(--xl-border); }.attention-panel li small { color:#a36140; font-size:11px; white-space:nowrap; }.attention-link { display:inline-flex; margin-top:14px; color:var(--xl-brand); font-size:13px; font-weight:800; text-decoration:none; }
 @media (max-width:900px) { .memory-overview { grid-template-columns:130px minmax(0,1fr); }.due-callout { grid-column:1/-1; flex-direction:row; align-items:baseline; gap:10px; padding:15px 20px; border-top:1px solid #dce6d8; border-left:0; }.due-callout strong { font-size:25px; }.detail-grid { grid-template-columns:1fr; } }
-@media (max-width:600px) { .familiarity-heading { display:block; }.book-filter { margin-top:15px; }.memory-overview { grid-template-columns:1fr; }.overview-lead { flex-direction:row; align-items:baseline; gap:9px; padding:16px 20px; border-right:0; border-bottom:1px solid #dce6d8; }.overview-lead strong { font-size:28px; }.overview-content { padding:18px 14px; }.segment-actions { gap:2px; }.segment-action { flex-wrap:wrap; gap:4px; }.segment-action strong { flex-basis:100%; margin-left:16px; }.word-panel,.attention-panel { padding:18px 16px; }.word-list li { align-items:start; padding:13px 0; }.word-meta { max-width:115px; } }
+@media (max-width:600px) { .familiarity-heading { display:block; }.book-filter { margin-top:15px; }.book-trigger { width:min(240px, calc(100vw - 90px)); }.book-panel { left:0; right:auto; }.memory-overview { grid-template-columns:1fr; }.overview-lead { flex-direction:row; align-items:baseline; gap:9px; padding:16px 20px; border-right:0; border-bottom:1px solid #dce6d8; }.overview-lead strong { font-size:28px; }.overview-content { padding:18px 14px; }.segment-actions { gap:2px; }.segment-action { flex-wrap:wrap; gap:4px; }.segment-action strong { flex-basis:100%; margin-left:16px; }.word-panel,.attention-panel { padding:18px 16px; }.word-list li { align-items:start; padding:13px 0; }.word-meta { max-width:115px; } }
 @media (prefers-reduced-motion:reduce) { .memory-track span { transition:none; } }
 </style>

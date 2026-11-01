@@ -37,7 +37,7 @@ describe('growth calendar', () => {
     await wrapper.find('[aria-label="上个月"]').trigger('click')
     await flushPromises()
     expect(api.getStudyCalendar).toHaveBeenLastCalledWith('2026-09')
-    expect(wrapper.find('.month-heading h3').text()).toBe('2026 年 9 月')
+    expect(wrapper.find('.month-value').text()).toBe('2026 年 9 月')
     wrapper.unmount()
   })
 
@@ -54,7 +54,7 @@ describe('growth calendar', () => {
     await wrapper.find('[aria-label="2025 年 3 月"]').trigger('click')
     await flushPromises()
     expect(api.getStudyCalendar).toHaveBeenLastCalledWith('2025-03')
-    expect(wrapper.find('.month-heading h3').text()).toBe('2025 年 3 月')
+    expect(wrapper.find('.month-value').text()).toBe('2025 年 3 月')
     expect(wrapper.find('.jump-panel').exists()).toBe(false)
 
     await wrapper.find('.jump-trigger').trigger('click')

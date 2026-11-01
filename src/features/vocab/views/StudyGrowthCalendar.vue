@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { getStudyCalendar } from '@/features/vocab/api'
 import type { StudyCalendar, StudyCalendarDay } from '@/features/vocab/types'
 
@@ -10,6 +10,7 @@ const error = ref('')
 const jumpOpen = ref(false)
 const jumpYear = ref(0)
 const jumpContainer = ref<HTMLElement | null>(null)
+const jumpTrigger = ref<HTMLButtonElement | null>(null)
 let requestSequence = 0
 
 const weekdays = ['一', '二', '三', '四', '五', '六', '日']
@@ -71,13 +72,18 @@ function toggleJump() {
   jumpOpen.value = !jumpOpen.value
 }
 
-function jumpTo(month: string) {
+function closeJump(restoreFocus = false) {
   jumpOpen.value = false
+  if (restoreFocus) void nextTick(() => jumpTrigger.value?.focus())
+}
+
+function jumpTo(month: string) {
+  closeJump(true)
   if (month !== calendar.value?.month) void loadCalendar(month)
 }
 
 function closeJumpOnOutsideClick(event: MouseEvent) {
-  if (jumpOpen.value && !jumpContainer.value?.contains(event.target as Node)) jumpOpen.value = false
+  if (jumpOpen.value && !jumpContainer.value?.contains(event.target as Node)) closeJump()
 }
 
 function formatTime(ms: number) {
@@ -109,30 +115,31 @@ onUnmounted(() => { document.removeEventListener('click', closeJumpOnOutsideClic
 
     <div v-if="loading && !calendar" class="calendar-state" role="status">正在翻开成长日历…</div>
     <div v-else-if="error && !calendar" class="calendar-state" role="alert">{{ error }} <button type="button" @click="loadCalendar()">重试</button></div>
-    <div v-else-if="calendar" class="calendar-card" :class="{ 'is-loading': loading }">
+    <div v-else-if="calendar" class="calendar-card" :aria-busy="loading">
       <div class="calendar-top">
-        <div class="month-heading"><span>GROWTH JOURNAL</span><h3>{{ monthLabel }}</h3></div>
-        <div class="month-controls" aria-label="切换月份">
-          <div ref="jumpContainer" class="jump-wrap" @keydown.esc="jumpOpen = false">
-            <button type="button" class="jump-trigger" aria-controls="month-jump-panel" :aria-expanded="jumpOpen"
-              :disabled="loading" @click="toggleJump">跳转月份 <span aria-hidden="true">⌄</span></button>
+        <div ref="jumpContainer" class="month-heading jump-wrap" @keydown.esc.stop="closeJump(true)">
+          <span>GROWTH JOURNAL</span>
+          <h3><button ref="jumpTrigger" type="button" class="jump-trigger" :aria-label="`跳转月份，当前${monthLabel}`" aria-controls="month-jump-panel" :aria-expanded="jumpOpen"
+            :disabled="loading" @click="toggleJump"><span class="month-value">{{ monthLabel }}</span><span class="jump-chevron" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none"><path d="m4.5 6.25 3.5 3.5 3.5-3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button></h3>
             <div v-if="jumpOpen" id="month-jump-panel" class="jump-panel" aria-label="选择要查看的月份">
               <div class="jump-year">
-                <button type="button" aria-label="上一年" :disabled="!canPreviousYear" @click="jumpYear--">←</button>
+                <button type="button" aria-label="上一年" :disabled="!canPreviousYear" @click="jumpYear--"><svg class="nav-icon" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="m11 4.5-4.5 4.5 4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
                 <strong>{{ jumpYear }} 年</strong>
-                <button type="button" aria-label="下一年" :disabled="!canNextYear" @click="jumpYear++">→</button>
+                <button type="button" aria-label="下一年" :disabled="!canNextYear" @click="jumpYear++"><svg class="nav-icon" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="m7 4.5 4.5 4.5L7 13.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               </div>
               <div class="jump-months">
                 <button v-for="choice in monthChoices" :key="choice.value" type="button"
                   :aria-label="`${choice.value.slice(0, 4)} 年 ${choice.number} 月`"
+                  :class="{ 'is-current-month': choice.value === currentMonth }"
                   :aria-pressed="choice.value === calendar.month" :disabled="choice.disabled"
                   @click="jumpTo(choice.value)">{{ choice.number }} 月</button>
               </div>
               <button type="button" class="jump-current" @click="jumpTo(currentMonth)">回到本月 ↗</button>
             </div>
-          </div>
-          <button type="button" aria-label="上个月" :disabled="loading || !canPrevious" @click="moveMonth(-1)">←</button>
-          <button type="button" aria-label="下个月" :disabled="loading || !canNext" @click="moveMonth(1)">→</button>
+        </div>
+        <div class="month-controls" role="group" aria-label="逐月翻页">
+          <button type="button" aria-label="上个月" :disabled="loading || !canPrevious" @click="moveMonth(-1)"><svg class="nav-icon" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="m11 4.5-4.5 4.5 4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button type="button" aria-label="下个月" :disabled="loading || !canNext" @click="moveMonth(1)"><svg class="nav-icon" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="m7 4.5 4.5 4.5L7 13.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         </div>
       </div>
 
@@ -164,7 +171,7 @@ onUnmounted(() => { document.removeEventListener('click', closeJumpOnOutsideClic
           <template v-if="selected">
             <span class="detail-kicker">DAY {{ selected.date.slice(-2) }}</span>
             <h4>{{ selected.date.slice(5).replace('-', ' 月 ') }} 日</h4>
-            <div class="detail-symbol" :class="{ earned: selected.checkedIn }" aria-hidden="true">{{ selected.checkedIn ? '✦' : selected.reviewCount > 0 ? '◌' : '·' }}</div>
+            <div :key="selected.date" class="detail-symbol" :class="{ earned: selected.checkedIn }" aria-hidden="true">{{ selected.checkedIn ? '✦' : selected.reviewCount > 0 ? '◌' : '·' }}</div>
             <strong>{{ selected.checkedIn ? '这一天，已点亮' : selected.reviewCount > 0 ? selected.date === calendar.today ? '这一页，还在生长' : '这一天，留下了学习足迹' : selected.date === calendar.today ? '今天，等你开始' : '留白也是旅程的一部分' }}</strong>
             <p v-if="selected.checkedIn">完成当时可学的任务后，自动留下一片成长的叶子。</p>
             <p v-else-if="selected.reviewCount > 0">{{ selected.date === calendar.today ? '已有学习记录，继续完成当天任务即可打卡。' : '这天有学习记录，但没有打卡记录。' }}</p>
@@ -198,16 +205,19 @@ onUnmounted(() => { document.removeEventListener('click', closeJumpOnOutsideClic
 .leaf { position: absolute; width: 55px; height: 29px; background: #afc894; border-radius: 100% 0 100% 0; box-shadow: inset 10px 5px 15px #d9eab14a; }
 .leaf-one { top: 26px; left: 31px; transform: rotate(21deg); }.leaf-two { top: 59px; left: 81px; transform: rotate(77deg); }.leaf-three { top: 86px; left: 13px; transform: rotate(23deg); }
 .calendar-card { border: 1px solid #dce2d1; border-top: 0; background: #fffef8; border-radius: 0 0 18px 18px; box-shadow: 0 16px 34px #2b483313; transition: opacity .2s; }
-.calendar-card.is-loading { opacity: .55; pointer-events: none; }
+.calendar-card[aria-busy="true"] .calendar-body { opacity: .65; pointer-events: none; }
 .calendar-top { display: flex; align-items: center; justify-content: space-between; padding: 25px 35px 16px; }
-.month-heading span { color: #829882; }.month-heading h3 { margin: 4px 0 0; font: 650 26px/1.2 Georgia, 'Songti SC', serif; }
-.month-controls { display: flex; gap: 6px; }.month-controls button { width: 39px; height: 39px; border: 1px solid #d5ded0; border-radius: 9px; background: #f6f8f1; color: #315b40; font-size: 21px; cursor: pointer; }.month-controls button:hover:not(:disabled) { background: #e4eee1; }.month-controls button:disabled { opacity: .35; cursor: not-allowed; }
-.jump-wrap { position: relative; }.month-controls .jump-trigger { width: auto; min-width: 108px; padding: 0 12px; display: inline-flex; align-items: center; justify-content: space-between; gap: 8px; font: 750 12px 'Noto Sans SC', sans-serif; }.jump-trigger[aria-expanded="true"] { border-color: #739b78; background: #e7f0e2; }.jump-trigger span { font-size: 17px; line-height: 1; }
-.jump-panel { position: absolute; right: 0; top: calc(100% + 9px); z-index: 5; width: 270px; padding: 16px; border: 1px solid #ceddcb; border-radius: 13px; background: #fffef8; box-shadow: 0 15px 35px #1d3c2a26; }.jump-year { display: flex; align-items: center; justify-content: space-between; margin-bottom: 13px; }.jump-year strong { font: 650 18px Georgia, 'Songti SC', serif; }.month-controls .jump-year button { width: 31px; height: 31px; font-size: 17px; }.jump-months { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }.month-controls .jump-months button { width: 100%; height: 38px; font-size: 12px; font-weight: 750; }.month-controls .jump-months button[aria-pressed="true"] { background: #2d6340; border-color: #2d6340; color: #fff; }.month-controls .jump-months button:disabled { background: #f7f7f2; }.month-controls .jump-current { width: 100%; height: 34px; margin-top: 13px; border: 0; border-top: 1px solid #e2e9df; border-radius: 0; background: transparent; color: #356d45; font-size: 12px; font-weight: 750; text-align: right; }
+.month-heading > span { color: #829882; }.month-heading h3 { margin: 2px 0 0; font: 650 26px/1.2 Georgia, 'Songti SC', serif; }
+.month-controls { display: inline-flex; gap: 0; padding: 3px; border: 1px solid #d5ded0; border-radius: 12px; background: #f6f8f1; }.month-controls button { width: 40px; height: 40px; border: 0; border-radius: 9px; background: transparent; color: #315b40; font: 400 30px/1 Georgia, serif; cursor: pointer; }.month-controls button + button { border-left: 1px solid #dce5d9; border-radius: 0 9px 9px 0; }.month-controls button:hover:not(:disabled) { background: #e4eee1; }.month-controls button:disabled { color: #aab9aa; cursor: not-allowed; }
+.jump-wrap { position: relative; min-width: 0; }.jump-trigger { display: inline-flex; align-items: center; gap: 10px; min-height: 40px; margin-left: -9px; padding: 2px 9px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: #223c2b; font: inherit; cursor: pointer; }.jump-trigger:hover, .jump-trigger[aria-expanded="true"] { border-color: #d5e3d2; background: #edf3e8; }.jump-trigger:disabled { cursor: wait; }.month-heading .month-value { color: inherit; font: inherit; letter-spacing: normal; }.jump-chevron { color: #6a8b70; font: 21px/1 'Noto Sans SC', sans-serif; transition: transform .18s ease; }.jump-trigger[aria-expanded="true"] .jump-chevron { transform: rotate(180deg); }
+.jump-panel { position: absolute; left: 0; top: calc(100% + 9px); z-index: 5; width: min(286px, calc(100vw - 56px)); padding: 16px; border: 1px solid #ceddcb; border-radius: 14px; background: #fffef8; box-shadow: 0 16px 38px #1d3c2a26; animation: panel-in .18s ease-out; }.jump-year { display: flex; align-items: center; justify-content: space-between; margin-bottom: 13px; }.jump-year strong { font: 650 18px Georgia, 'Songti SC', serif; }.jump-year button { width: 36px; height: 36px; border: 1px solid #d5ded0; border-radius: 9px; background: #f6f8f1; color: #315b40; font: 26px/1 Georgia, serif; cursor: pointer; }.jump-year button:disabled { opacity: .35; cursor: not-allowed; }.jump-year button:hover:not(:disabled) { background: #e4eee1; }.jump-months { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }.jump-months button { height: 40px; border: 1px solid transparent; border-radius: 9px; background: #f6f8f1; color: #315b40; font-size: 12px; font-weight: 750; cursor: pointer; }.jump-months button:hover:not(:disabled) { border-color: #9eb99d; background: #eaf2e7; }.jump-months button.is-current-month:not([aria-pressed="true"]) { border-color: #c6a06a; color: #8a642e; }.jump-months button[aria-pressed="true"] { background: #2d6340; border-color: #2d6340; color: #fff; }.jump-months button:disabled { background: #f7f7f2; color: #b7c0b3; cursor: not-allowed; }.jump-current { width: 100%; min-height: 39px; margin-top: 13px; padding: 7px 3px 0; border: 0; border-top: 1px solid #e2e9df; background: transparent; color: #356d45; font-size: 12px; font-weight: 750; text-align: right; cursor: pointer; }.jump-current:hover { color: #1f492f; }
+@keyframes panel-in { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+.jump-chevron { display:grid; place-items:center; width:24px; height:24px; border:1px solid #d6e5d5; border-radius:8px; background:#eaf2e8; }.jump-chevron svg { width:15px; height:15px; }.jump-trigger:hover .jump-chevron, .jump-trigger[aria-expanded="true"] .jump-chevron { background:#deebdc; border-color:#bad1b8; }
+.nav-icon { width:18px; height:18px; display:block; }.month-controls button, .jump-year button { display:grid; place-items:center; }
 .growth-stats { display: flex; align-items: stretch; margin: 0 35px 26px; border-bottom: 1px solid #e4e9de; padding: 5px 0 21px; gap: 31px; }.growth-stats div { min-width: 105px; display: flex; flex-direction: column; gap: 2px; }.growth-stats strong { font: 650 29px/1.1 Georgia, serif; color: #295b3a; }.growth-stats small { font: 600 13px/1.2 'Noto Sans SC', sans-serif; margin-left: 3px; }.growth-stats span { color: #779078; font-size: 12px; }.growth-stats p { margin: auto 0 auto auto; max-width: 210px; color: #68806d; font-size: 12px; line-height: 1.5; }
 .calendar-body { display: grid; grid-template-columns: minmax(0, 1fr) 230px; gap: 26px; padding: 0 35px 31px; }.calendar-main { min-width: 0; }.weekday-row, .day-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }.weekday-row span { text-align: center; color: #8b9b8c; font-size: 11px; font-weight: 750; padding: 0 0 11px; }.day-grid { gap: 5px; }.day-cell, .blank-day { aspect-ratio: 1.27; min-height: 47px; }.day-cell { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; border: 1px solid transparent; border-radius: 10px; background: #f6f7f1; color: #657666; cursor: pointer; font: 600 15px Georgia, serif; transition: transform .15s ease, background .15s ease, border-color .15s ease; }.day-cell:hover:not(:disabled) { transform: translateY(-2px); border-color: #9cb69d; }.day-cell.active { outline: 2px solid #2d6340; outline-offset: 2px; }.day-cell.checked { background: #e0ebdc; color: #245539; }.day-cell.today { border-color: #be9b62; }.day-cell:disabled { background: transparent; opacity: .35; cursor: default; }.day-leaf { width: 20px; height: 20px; color: #448b54; }.activity-dot { width: 5px; height: 5px; background: #c39957; border-radius: 50%; }.legend { display: flex; gap: 20px; align-items: center; padding-top: 18px; color: #79907c; font-size: 11px; }.legend span { display: flex; align-items: center; gap: 6px; }.legend-leaf { color: #4c945b; font-style: normal; }.legend-dot { width: 6px; height: 6px; background: #c39957; border-radius: 50%; }.legend-today { width: 12px; height: 12px; border: 1px solid #be9b62; border-radius: 4px; }
-.day-detail { min-height: 275px; border-left: 1px solid #e4e9de; padding: 3px 0 0 25px; }.detail-kicker { color: #a4b29f; }.day-detail h4 { margin: 5px 0 12px; font: 650 24px/1.2 Georgia, 'Songti SC', serif; }.detail-symbol { width: 56px; height: 56px; display: grid; place-items: center; border-radius: 50%; background: #f1f0e6; color: #a9b5a5; font: 30px Georgia, serif; margin-bottom: 13px; }.detail-symbol.earned { color: #fff9e3; background: #4a8b55; box-shadow: 0 0 0 6px #e2efdc; }.day-detail strong { display: block; font-size: 14px; }.day-detail p { margin: 7px 0 12px; color: #778a78; font-size: 12px; line-height: 1.6; }.detail-numbers { margin: 14px 0 0; border-top: 1px solid #e9eee5; }.detail-numbers div { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid #e9eee5; font-size: 12px; }.detail-numbers dt { color: #7f9481; }.detail-numbers dd { margin: 0; font-weight: 750; }.study-action { display: inline-block; margin-top: 12px; color: #285f3a; font-size: 12px; font-weight: 800; text-decoration: none; }.study-action:hover { text-decoration: underline; }
+.day-detail { min-height: 275px; border-left: 1px solid #e4e9de; padding: 3px 0 0 25px; }.detail-kicker { color: #a4b29f; }.day-detail h4 { margin: 5px 0 12px; font: 650 24px/1.2 Georgia, 'Songti SC', serif; }.detail-symbol { width: 56px; height: 56px; display: grid; place-items: center; border-radius: 50%; background: #f1f0e6; color: #a9b5a5; font: 30px Georgia, serif; margin-bottom: 13px; }.detail-symbol.earned { color: #fff9e3; background: #4a8b55; box-shadow: 0 0 0 6px #e2efdc; animation: leaf-bloom .22s ease-out both; }@keyframes leaf-bloom { from { opacity: .5; transform: scale(.84); } to { opacity: 1; transform: scale(1); } }.day-detail strong { display: block; font-size: 14px; }.day-detail p { margin: 7px 0 12px; color: #778a78; font-size: 12px; line-height: 1.6; }.detail-numbers { margin: 14px 0 0; border-top: 1px solid #e9eee5; }.detail-numbers div { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid #e9eee5; font-size: 12px; }.detail-numbers dt { color: #7f9481; }.detail-numbers dd { margin: 0; font-weight: 750; }.study-action { display: inline-block; margin-top: 12px; color: #285f3a; font-size: 12px; font-weight: 800; text-decoration: none; }.study-action:hover { text-decoration: underline; }
 .calendar-state { padding: 36px; background: #fffef8; border: 1px solid #dce2d1; border-radius: 0 0 18px 18px; color: #627867; }.calendar-state button, .refresh-error button { border: 0; color: #285f3a; background: none; font-weight: 750; cursor: pointer; }.refresh-error { padding: 0 35px 22px; color: #a5543e; font-size: 12px; }button:focus-visible, a:focus-visible { outline: 3px solid #b9975d; outline-offset: 3px; }
 @media (max-width: 760px) { .section-copy { padding: 25px 22px; }.leaf-art { position: absolute; right: -25px; opacity: .35; }.section-copy > div:first-child { max-width: 90%; }.calendar-top { padding: 22px 20px 14px; gap: 12px; flex-wrap: wrap; }.month-controls { margin-left: auto; }.growth-stats { margin: 0 20px 23px; gap: 10px; justify-content: space-between; }.growth-stats div { min-width: 0; }.growth-stats strong { font-size: 23px; }.growth-stats p { display: none; }.calendar-body { display: block; padding: 0 18px 25px; }.day-grid { gap: 3px; }.day-cell, .blank-day { min-height: 40px; aspect-ratio: 1; }.day-leaf { width: 17px; height: 17px; }.day-detail { min-height: 0; margin-top: 22px; padding: 18px 3px 0; border-left: 0; border-top: 1px solid #e4e9de; }.detail-symbol { float: right; margin: -28px 8px 0 0; }.detail-numbers { display: flex; gap: 18px; }.detail-numbers div { flex: 1; }.legend { gap: 11px; flex-wrap: wrap; } }
-@media (prefers-reduced-motion: reduce) { .day-cell, .calendar-card { transition: none; }.day-cell:hover:not(:disabled) { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .day-cell, .calendar-card { transition: none; }.day-cell:hover:not(:disabled) { transform: none; }.jump-panel, .detail-symbol.earned { animation: none; } }
 </style>
