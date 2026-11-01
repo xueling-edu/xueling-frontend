@@ -41,7 +41,7 @@
               进入今日学习 <span aria-hidden="true">→</span>
             </button>
             <button v-else class="primary-action" type="button" :disabled="updatingPlan || loadingDetail || !!detailError" @click="togglePlan">
-              {{ updatingPlan ? '正在加入…' : '＋ 加入学习计划' }}
+              <ActionIcon v-if="!updatingPlan" name="plus" /> {{ updatingPlan ? '正在加入…' : '加入学习计划' }}
             </button>
             <button v-if="studyEnabled" class="quiet-action" type="button" :disabled="updatingPlan" @click="togglePlan">
               {{ updatingPlan ? '正在更新…' : '移出学习计划' }}
@@ -57,20 +57,20 @@
             <h2 id="word-title">词汇列表 <span>{{ totalWordCount }}</span></h2>
             <p>查找单词、听读音，隐藏释义自测，也可以选取 5–10 词进行自由练习。</p>
           </div>
-          <button v-if="bookType !== 'SYSTEM' && !loadingDetail && !detailError" class="add-button" type="button" @click="dialogVisible = true">＋ 添加单词</button>
+          <button v-if="bookType !== 'SYSTEM' && !loadingDetail && !detailError" class="add-button" type="button" @click="dialogVisible = true"><ActionIcon name="plus" /> 添加单词</button>
         </div>
 
         <div class="list-panel">
           <div class="list-toolbar">
             <label class="search-field">
               <span class="sr-only">搜索单词或中文释义</span>
-              <span aria-hidden="true">⌕</span>
+              <ActionIcon name="search" />
               <input v-model="searchQuery" type="search" placeholder="搜索单词或中文释义" />
             </label>
             <div class="toolbar-actions">
               <span class="result-count" role="status">{{ loadingDetail ? '正在加载' : searchQuery.trim() ? '找到 ' + filteredWords.length + ' 词' : '共 ' + words.length + ' 词' }}</span>
               <button v-if="!loadingDetail && !detailError && words.length" class="meaning-toggle-all" type="button" :aria-pressed="meaningsHidden" @click="toggleAllMeanings">
-                <span class="toggle-icon" aria-hidden="true">{{ meaningsHidden ? '◉' : '◌' }}</span>
+                <ActionIcon class="toggle-icon" :name="meaningsHidden ? 'eye' : 'eye-off'" />
                 {{ meaningsHidden ? '展示全部释义' : '隐藏全部释义' }}
               </button>
             </div>
@@ -89,13 +89,13 @@
             </div>
           </div>
           <div v-else-if="detailError" class="content-state" role="alert">
-            <span class="state-symbol" aria-hidden="true">↻</span>
+            <span class="state-symbol" aria-hidden="true"><ActionIcon name="refresh" /></span>
             <h3>词书暂时没有加载出来</h3>
             <p>{{ detailError }}</p>
             <button type="button" @click="loadData">重新加载</button>
           </div>
           <div v-else-if="filteredWords.length === 0" class="content-state">
-            <span class="state-symbol" aria-hidden="true">{{ searchQuery.trim() ? '⌕' : '＋' }}</span>
+            <span class="state-symbol" aria-hidden="true"><ActionIcon :name="searchQuery.trim() ? 'search' : 'plus'" /></span>
             <h3>{{ searchQuery.trim() ? '没有找到匹配的单词' : '这本词书还没有单词' }}</h3>
             <p>{{ searchQuery.trim() ? '试试其他拼写或中文释义。' : bookType === 'SYSTEM' ? '这本词书目前没有可展示的单词。' : '添加想记住的单词，建立自己的词库。' }}</p>
             <button v-if="searchQuery.trim()" type="button" @click="searchQuery = ''">清除搜索</button>
@@ -120,7 +120,7 @@
                   <button type="button" class="issue-link" :aria-label="'反馈 ' + word.word + ' 的内容问题'" @click="issueTarget = { wordId: word.id, word: word.word, meaning: word.meaning, phonetic: word.phonetic, example: word.example, exampleTranslation: word.exampleTranslation }">反馈内容问题</button>
                 </div>
                 <div class="word-actions">
-                  <button type="button" class="audio-button" :aria-label="'播放 ' + word.word + ' 的读音'" @click="playWordAudio(word.word)">♫</button>
+                  <button type="button" class="audio-button" :aria-label="'播放 ' + word.word + ' 的读音'" @click="playWordAudio(word.word)"><ActionIcon name="volume" /></button>
                   <button v-if="bookType !== 'SYSTEM'" type="button" class="remove-button" :aria-label="'从词书移除 ' + word.word" @click="deleteWord(word)">移除</button>
                 </div>
               </li>
@@ -209,6 +209,7 @@ import type { WordDictionary, WordVO } from '@/features/vocab/types'
 import { useReviewStore } from '@/features/vocab/reviewStore'
 import { useUserStore } from '@/stores/user'
 import PageBreadcrumb from '@/components/PageBreadcrumb.vue'
+import ActionIcon from '@/components/ActionIcon.vue'
 import { cancelEnglishWord, speakEnglishWord } from '@/utils/wordSpeech'
 
 const route = useRoute()
@@ -499,7 +500,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid #bd914d; outline-
 .toggle-icon { font-size: 16px; line-height: 1; }
 .search-field { display: flex; align-items: center; gap: 8px; width: min(100%, 390px); height: 42px; box-sizing: border-box; padding: 0 13px; border: 1px solid #d9e2d5; border-radius: 8px; background: #f8f9f3; }
 .search-field:focus-within { border-color: #587a5c; }
-.search-field span:not(.sr-only) { font-size: 25px; color: #78917b; line-height: 1; }
+.search-field .action-icon { width: 20px; height: 20px; color: #78917b; }
 .search-field input { width: 100%; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; font-size: 14px; }
 .result-count { color: var(--muted); font-size: 13px; white-space: nowrap; }
 .word-table-heading, .word-row { display: grid; grid-template-columns: minmax(170px, 1.2fr) minmax(125px, .8fr) minmax(180px, 2fr) 116px; gap: 18px; align-items: center; }

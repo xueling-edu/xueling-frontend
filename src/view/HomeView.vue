@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowDown } from '@element-plus/icons-vue'
+import { ArrowDown, User, Setting, ChatLineSquare, SwitchButton } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
@@ -50,10 +50,10 @@ async function handleCommand(command: string) {
           </button>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="profile">个人中心</el-dropdown-item>
-              <el-dropdown-item command="settings">设置</el-dropdown-item>
-              <el-dropdown-item command="feedback">意见反馈</el-dropdown-item>
-              <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
+              <el-dropdown-item command="profile"><el-icon><User /></el-icon>个人中心</el-dropdown-item>
+              <el-dropdown-item command="settings"><el-icon><Setting /></el-icon>设置</el-dropdown-item>
+              <el-dropdown-item command="feedback"><el-icon><ChatLineSquare /></el-icon>意见反馈</el-dropdown-item>
+              <el-dropdown-item command="logout" divided><el-icon><SwitchButton /></el-icon>退出登录</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>

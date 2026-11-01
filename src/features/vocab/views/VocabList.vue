@@ -9,7 +9,7 @@
         <template #actions>
           <div class="header-actions">
             <router-link class="header-progress" to="/english/vocab/insights">学习进度 <span aria-hidden="true">→</span></router-link>
-            <button class="header-create" type="button" @click="dialogVisible = true">＋ 新建词书</button>
+            <button class="header-create" type="button" @click="dialogVisible = true"><ActionIcon name="plus" /> 新建词书</button>
           </div>
         </template>
       </PageHeading>
@@ -20,13 +20,13 @@
           <div v-for="index in 3" :key="index" class="book-skeleton" aria-hidden="true"></div>
         </div>
         <div v-else-if="booksError" class="collection-state" role="alert">
-          <span class="state-symbol" aria-hidden="true">↻</span>
+          <span class="state-symbol" aria-hidden="true"><ActionIcon name="refresh" /></span>
           <h3>词书暂时没有加载出来</h3>
           <p>{{ booksError }}</p>
           <button type="button" @click="fetchWordBooks">重新加载</button>
         </div>
         <div v-else-if="wordBooks.length === 0" class="collection-state">
-          <span class="state-symbol" aria-hidden="true">＋</span>
+          <span class="state-symbol" aria-hidden="true"><ActionIcon name="plus" /></span>
           <h3>从第一本词书开始</h3>
           <p>创建自己的词书，收集想记住的单词。</p>
           <button type="button" @click="dialogVisible = true">创建单词本</button>
@@ -58,7 +58,7 @@
             <div class="book-actions">
               <button class="open-book" type="button" @click="handleBookClick(book.id)">查看词书 <span aria-hidden="true">→</span></button>
               <button class="plan-toggle" :class="{ enabled: book.studyEnabled }" type="button" :disabled="busyBookId === book.id" :aria-pressed="!!book.studyEnabled" @click="toggleBook(book)">
-                {{ busyBookId === book.id ? '更新中…' : book.studyEnabled ? '✓ 已加入计划' : '＋ 加入计划' }}
+                <ActionIcon v-if="busyBookId !== book.id" :name="book.studyEnabled ? 'check' : 'plus'" /> {{ busyBookId === book.id ? '更新中…' : book.studyEnabled ? '已加入计划' : '加入计划' }}
               </button>
               <router-link v-if="book.studyEnabled" class="start-study-link" to="/english/vocab/study" aria-label="开始今日学习">今日学习 <span aria-hidden="true">→</span></router-link>
             </div>
@@ -98,6 +98,7 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import PageHeading from '@/components/PageHeading.vue'
+import ActionIcon from '@/components/ActionIcon.vue'
 import BookEmblem from '@/features/vocab/BookEmblem.vue'
 import { createWordBook, getWordBooks, setStudyBookEnabled } from '@/features/vocab/api'
 import type { WordBookVo } from '@/features/vocab/types'

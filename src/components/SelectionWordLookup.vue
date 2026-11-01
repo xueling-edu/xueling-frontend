@@ -4,7 +4,7 @@
     <div v-if="word" ref="popup" class="selection-lookup-popover" :style="position" role="status" @pointerdown.prevent>
       <div class="selection-lookup-heading">
         <strong>{{ result?.word || word }}</strong>
-        <button type="button" :aria-label="`播放 ${word} 的读音`" @click="playWord">♫ <span>发音</span></button>
+        <button type="button" :aria-label="`播放 ${word} 的读音`" @click="playWord"><ActionIcon name="volume" /> <span>发音</span></button>
         <button type="button" class="selection-lookup-close" aria-label="关闭释义" @click="close">×</button>
       </div>
       <small v-if="result?.phonetic">/{{ result.phonetic }}/</small>
@@ -23,6 +23,7 @@ import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { translateText } from '@/api/translate'
 import type { TranslateResult } from '@/types/translate'
 import { speakEnglishWord } from '@/utils/wordSpeech'
+import ActionIcon from '@/components/ActionIcon.vue'
 
 const props = withDefaults(defineProps<{ protectedWords?: string[] }>(), { protectedWords: () => [] })
 const root = ref<HTMLElement | null>(null)

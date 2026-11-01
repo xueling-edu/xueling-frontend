@@ -56,7 +56,7 @@
           <!-- 正面 -->
           <div class="card-face card-front" :aria-hidden="isFlipped">
             <button type="button" class="voice-icon-wrapper" :tabindex="isFlipped ? -1 : 0" :aria-label="'播放 ' + currentCard.word + ' 的读音'" @click.stop="playAudio(currentCard.word)">
-                 <el-icon><Microphone /></el-icon>
+                 <ActionIcon name="volume" />
             </button>
             
             <div class="card-image-box" v-if="currentCard.imageUrl">
@@ -267,7 +267,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Check, Close, Microphone, Trophy, MagicStick, Back, RefreshRight, View, EditPen, Monitor } from '@element-plus/icons-vue'
+import { Check, Close, Trophy, MagicStick, Back, RefreshRight, View, EditPen, Monitor } from '@element-plus/icons-vue'
+import ActionIcon from '@/components/ActionIcon.vue'
 import { ElMessage } from 'element-plus'
 import WordFamilyTree from '@/features/vocab/WordFamilyTree.vue'
 import SelectionWordLookup from '@/components/SelectionWordLookup.vue'

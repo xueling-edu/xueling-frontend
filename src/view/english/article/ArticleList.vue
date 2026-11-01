@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { getArticleCategories, getArticlesByCategory } from '@/api/article'
 import type { ArticleCategory, ArticleListItem } from '@/types/article'
 import PageHeading from '@/components/PageHeading.vue'
+import ActionIcon from '@/components/ActionIcon.vue'
 
 const categories = ref<ArticleCategory[]>([])
 const articles = ref<ArticleListItem[]>([])
@@ -77,7 +78,7 @@ onMounted(async () => {
         <div v-else-if="errorMessage" class="list-state" role="alert">
           <h3>文章暂时没有加载出来</h3>
           <p>{{ errorMessage }}</p>
-          <button type="button" @click="loadArticles()">重新加载</button>
+          <button type="button" @click="loadArticles()"><ActionIcon name="refresh" /> 重新加载</button>
         </div>
         <div v-else-if="articles.length === 0" class="list-state">
           <h3>这里还没有文章</h3>

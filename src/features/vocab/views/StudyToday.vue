@@ -67,7 +67,7 @@
                 <h2>{{ currentCard.word }}</h2>
                 <div class="answer-tools">
                   <span v-if="currentCard.phonetic" class="phonetic">/{{ currentCard.phonetic }}/</span>
-                  <button class="audio-button" type="button" :aria-label="'播放 ' + currentCard.word + ' 的读音'" @click="playAudio(currentCard.word)">♫ 听发音</button>
+                  <button class="audio-button" type="button" :aria-label="'播放 ' + currentCard.word + ' 的读音'" @click="playAudio(currentCard.word)"><ActionIcon name="volume" /> 听发音</button>
                 </div>
                 <div class="definition-section">
                   <span class="answer-label">{{ followup ? '本轮核心义' : '中文释义' }}</span>
@@ -147,7 +147,7 @@
       </section>
 
       <section v-else-if="planState === 'none'" class="state-panel setup-panel">
-        <div class="complete-mark">＋</div>
+        <div class="complete-mark"><ActionIcon name="plus" /></div>
         <h2>先选一本词书</h2>
         <p>将词书加入学习计划后，这里才会出现今天要学的单词。</p>
         <div class="complete-actions">
@@ -172,7 +172,7 @@
           <p><strong>{{ pendingEchoCount }} 个记忆回声待回访</strong><span>隔开其他词后再回忆；本轮没有更多词时，按下一次到期时间回来。</span></p>
         </div>
         <div v-if="nextReviewDisplay" class="next-review">
-          <span class="next-review-icon" aria-hidden="true">↻</span>
+          <span class="next-review-icon" aria-hidden="true"><ActionIcon name="clock" /></span>
           <div>
             <span class="next-review-label">下一次复习</span>
             <p>{{ nextReviewDisplay.relative }}</p>
@@ -234,6 +234,7 @@ import { createReviewRequestId } from '@/features/vocab/requestId'
 import { useUserStore } from '@/stores/user'
 import PageBreadcrumb from '@/components/PageBreadcrumb.vue'
 import SelectionWordLookup from '@/components/SelectionWordLookup.vue'
+import ActionIcon from '@/components/ActionIcon.vue'
 import WordIssueDialog from '@/features/feedback/WordIssueDialog.vue'
 import type { CorrectionTarget } from '@/features/feedback/WordIssueDialog.vue'
 import { cancelEnglishWord, preloadEnglishWord, speakEnglishWord } from '@/utils/wordSpeech'

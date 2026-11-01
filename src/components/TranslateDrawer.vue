@@ -107,13 +107,9 @@
                   <span v-if="currentResult.phonetic" class="phonetic-text">
                     /{{ currentResult.phonetic.replace(/^\/|\/$/g, '') }}/
                   </span>
-                  <el-icon 
-                    class="speaker-icon"
-                    :size="18"
-                    @click="playPronunciation"
-                  >
-                      <Microphone />
-                  </el-icon>
+                  <button class="speaker-icon" type="button" :aria-label="'播放 ' + currentResult.word + ' 的读音'" @click="playPronunciation">
+                    <ActionIcon name="volume" />
+                  </button>
                 </div>
               </div>
 
@@ -329,7 +325,6 @@ import { ref, onMounted, onUnmounted, reactive, watch } from 'vue'
 import { 
   Document, 
   Close, 
-  Microphone, 
   Reading, 
   ChatLineSquare,
   Plus,
@@ -343,6 +338,7 @@ import {
 import { Vue3Lottie } from 'vue3-lottie'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useTranslate } from '@/composables/useTranslate'
+import ActionIcon from '@/components/ActionIcon.vue'
 import { getWordBooks } from '@/features/vocab/api'
 import { matchWords, addWordsToBook, removeWordsFromBook } from '@/features/vocab/api'
 import type { WordBookVo } from '@/features/vocab/types'
@@ -907,13 +903,20 @@ onUnmounted(() => {
 }
 
 .speaker-icon {
-  color: #9ca3af;
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: #eaf1e8;
+  color: #315b40;
   cursor: pointer;
-  transition: color 0.2s;
+  transition: background-color 0.2s;
 }
 
 .speaker-icon:hover {
-  color: #84fab0;
+  background: #dcebdc;
 }
 
 /* 释义列表 */
