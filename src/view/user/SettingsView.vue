@@ -11,7 +11,7 @@ const wordLookupEnabled = computed({
 
 const sections = [
   { id: 'learning-tools', label: '学习工具', number: '01' },
-  { id: 'account', label: '账户', number: '02' },
+  { id: 'account', label: '账户与帮助', number: '02' },
 ]
 </script>
 
@@ -21,7 +21,7 @@ const sections = [
       <PageHeading
         :items="[{ label: '首页', to: '/' }, { label: '设置' }]"
         title="设置"
-        description="调整学习时常用的工具，让页面更适合你的节奏。"
+        description="调整学习工具，管理个人资料。"
       />
 
       <div class="settings-layout">
@@ -30,7 +30,6 @@ const sections = [
           <a v-for="section in sections" :key="section.id" :href="`#${section.id}`">
             <span class="nav-number">{{ section.number }}</span>
             <span>{{ section.label }}</span>
-            <span class="nav-arrow" aria-hidden="true">↗</span>
           </a>
           <p class="nav-note">更改会立即生效，并保存在此浏览器中。</p>
         </nav>
@@ -58,14 +57,21 @@ const sections = [
               <el-switch v-model="wordLookupEnabled" size="large" aria-label="单词查询悬浮窗" />
             </div>
             <p class="section-footnote">关闭后，悬浮入口会立即隐藏；再次开启即可恢复。</p>
+            <router-link class="account-link learning-settings-link" :to="{ path: '/english/vocab/study', query: { settings: '1' } }">
+              <span>
+                <strong>每日学习计划</strong>
+                <small>调整新词上限、目标记忆率和时区</small>
+              </span>
+              <span class="link-arrow" aria-hidden="true">→</span>
+            </router-link>
           </section>
 
           <section id="account" class="settings-section" aria-labelledby="account-title">
             <div class="section-heading">
               <div>
-                <p class="eyebrow">02 / ACCOUNT</p>
-                <h2 id="account-title">账户</h2>
-                <p>个人资料和账户信息集中管理。</p>
+                <p class="eyebrow">02 / ACCOUNT & HELP</p>
+                <h2 id="account-title">账户与帮助</h2>
+                <p>管理个人资料，或告诉我们你的想法。</p>
               </div>
               <span class="section-glyph section-glyph-account" aria-hidden="true">◎</span>
             </div>
@@ -74,14 +80,14 @@ const sections = [
                 <strong>个人资料</strong>
                 <small>修改头像、用户名及个人简介</small>
               </span>
-              <span class="link-arrow" aria-hidden="true">↗</span>
+              <span class="link-arrow" aria-hidden="true">→</span>
             </router-link>
             <router-link class="account-link feedback-link" :to="{ path: '/feedback', query: { from: '/settings' } }">
               <span>
                 <strong>意见反馈</strong>
                 <small>报告问题，分享想法，也能查看处理进度</small>
               </span>
-              <span class="link-arrow" aria-hidden="true">↗</span>
+              <span class="link-arrow" aria-hidden="true">→</span>
             </router-link>
           </section>
         </div>
@@ -98,7 +104,6 @@ const sections = [
 .settings-nav a { display: flex; align-items: center; gap: 11px; min-height: 43px; padding: 0 12px; border-radius: 9px; color: var(--xl-ink); font-size: 14px; font-weight: 750; text-decoration: none; transition: background .18s ease; }
 .settings-nav a:hover, .settings-nav a:focus-visible { background: var(--xl-surface-muted); }
 .nav-number { color: #7b947e; font: 600 12px var(--xl-font-display); }
-.nav-arrow { margin-left: auto; color: #819783; }
 .nav-note { margin: 18px 12px 0; padding-top: 17px; border-top: 1px solid var(--xl-border); color: var(--xl-ink-soft); font-size: 12px; line-height: 1.7; }
 .settings-content { display: grid; gap: 20px; min-width: 0; }
 .settings-section { scroll-margin-top: 24px; padding: 28px 30px 24px; border: 1px solid var(--xl-border); border-radius: var(--xl-radius-md); background: var(--xl-surface); }
@@ -117,24 +122,24 @@ const sections = [
 .setting-state { display: inline-block; margin-top: 9px; color: var(--xl-brand); font-size: 11px; font-weight: 750; }
 .section-footnote { padding-top: 17px; border-top: 1px solid var(--xl-border); color: var(--xl-ink-soft); font-size: 12px; line-height: 1.6; }
 .account-link { display: flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 84px; color: var(--xl-ink); text-decoration: none; }
+.learning-settings-link { margin-top: 18px; border-top: 1px solid var(--xl-border); }
 .feedback-link { border-top: 1px solid var(--xl-border); }
 .account-link > span:first-child { display: grid; gap: 6px; }
 .account-link strong { font-size: 15px; }
 .account-link small { color: var(--xl-ink-soft); font-size: 13px; }
 .link-arrow { color: var(--xl-brand); font-size: 23px; transition: transform .18s ease; }
-.account-link:hover .link-arrow { transform: translate(2px, -2px); }
+.account-link:hover .link-arrow { transform: translateX(3px); }
+.account-link:focus-visible, .settings-nav a:focus-visible { outline: 3px solid var(--xl-accent); outline-offset: 3px; }
 @media (max-width: 760px) {
   .settings-layout { grid-template-columns: 1fr; gap: 16px; }
-  .settings-nav { position: static; display: flex; flex-wrap: wrap; gap: 4px; padding: 9px; }
-  .nav-heading, .nav-note { display: none; }
-  .settings-nav a { flex: 1; justify-content: center; min-width: 130px; }
-  .nav-arrow { display: none; }
+  .settings-nav { display: none; }
   .settings-section { padding: 24px 20px 20px; }
 }
 @media (max-width: 480px) {
   .section-glyph { width: 46px; height: 46px; font-size: 22px; }
-  .setting-row { align-items: flex-start; flex-wrap: wrap; gap: 13px; }
-  .setting-copy { flex-basis: calc(100% - 65px); }
-  .setting-row :deep(.el-switch) { margin-left: 61px; }
+  .setting-row { gap: 12px; }
+  .setting-icon { display: none; }
+  .setting-row :deep(.el-switch) { flex: none; }
 }
+@media (prefers-reduced-motion: reduce) { .link-arrow { transition: none; } }
 </style>

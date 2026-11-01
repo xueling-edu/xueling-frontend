@@ -288,7 +288,7 @@ onMounted(() => {
       <div v-if="loadingArticle" class="state-note" role="status">正在打开文章…</div>
 
       <template v-else-if="article">
-        <div class="reader-topline"><span>你的语境文章 · {{ article.targets.length }} 个目标词<span v-if="attemptCount"> · 已练 {{ attemptCount }} 次</span></span><button type="button" @click="newArticle">再选一组词 ↗</button></div>
+        <div class="reader-topline"><span>你的语境文章 · {{ article.targets.length }} 个目标词<span v-if="attemptCount"> · 已练 {{ attemptCount }} 次</span></span><button type="button" @click="newArticle">再选一组词</button></div>
         <div v-if="phase === 'recall'" class="recall-toolbar"><div><span class="eyebrow">02 / RECALL</span><h2>现在试着自己想起来</h2><p>想不起时可以查看原文，继续作答即可。</p></div><button type="button" :aria-expanded="peekArticle" @click="peekArticle = !peekArticle">{{ peekArticle ? '收起原文 ↑' : '查看原文提示 ↓' }}</button></div>
         <div v-if="phase !== 'recall' || peekArticle" class="reader-layout">
           <article ref="reader" class="reading-paper" tabindex="-1">
@@ -310,11 +310,11 @@ onMounted(() => {
           </aside>
         </div>
         <details v-if="phase !== 'recall'" class="mobile-word-list"><summary>查看本篇 {{ article.targets.length }} 个目标词</summary><ol><li v-for="target in article.targets" :key="target.wordId">{{ target.word }}</li></ol></details>
-        <section v-if="phase === 'reading'" class="reading-next"><div><span class="eyebrow">02 / RECALL</span><h2>读完了？试着从语境中找回单词</h2><p>开始后会收起原文。本轮练习 {{ practiceTargets.length }} / {{ article.targets.length }} 个目标词，随时可以展开原文作为提示。</p></div><button type="button" @click="startRecall">开始回忆 ↗</button></section>
+        <section v-if="phase === 'reading'" class="reading-next"><div><span class="eyebrow">02 / RECALL</span><h2>读完了？试着从语境中找回单词</h2><p>开始后会收起原文。本轮练习 {{ practiceTargets.length }} / {{ article.targets.length }} 个目标词，随时可以展开原文作为提示。</p></div><button type="button" @click="startRecall">开始回忆</button></section>
         <section v-if="phase !== 'reading'" ref="practice" class="practice-panel" aria-labelledby="practice-title">
           <div class="practice-intro"><span class="eyebrow">RECALL / 回忆</span><h2 id="practice-title">读完后，试着填回这些词</h2><p>根据原文语境填写英文单词。结果只属于这次练习。</p><span v-if="!score" class="practice-progress" role="status">已完成 {{ completedAnswers }} / {{ practiceTargets.length }}</span></div>
           <div class="practice-list"><label v-for="(target, index) in practiceTargets" :key="target.wordId" class="practice-item" :class="{ 'answer-right': score && answerCorrect(index), 'answer-wrong': score && !answerCorrect(index) }"><span class="practice-number">{{ String(index + 1).padStart(2, '0') }}</span><span class="practice-sentence">{{ cloze(target) }}</span><span class="answer-row"><input v-model="answers[index]" :disabled="!!score" :aria-label="`第 ${index + 1} 题答案`" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="填入单词" /><small v-if="score" class="answer-feedback">{{ answerCorrect(index) ? '回答正确' : `正确答案：${target.word}` }}</small></span></label></div>
-          <div class="practice-footer"><p v-if="score" role="status"><strong>{{ resultRestored ? '最近一次' : '本次' }}答对 {{ score.correctCount }} / {{ score.totalCount }} 题</strong><span>{{ lastAttemptAt ? `完成于 ${lastAttemptAt.slice(0, 10)}` : '练习已保存' }} · 不改变复习安排</span></p><template v-if="score"><button type="button" class="review-button" @click="backToArticle">返回文章核对 ↑</button><button type="button" @click="retryArticle">再练一次 ↗</button></template><button v-else type="button" :disabled="!canSubmit" @click="submit">{{ submitting ? '正在保存…' : '查看练习结果' }}</button></div>
+          <div class="practice-footer"><p v-if="score" role="status"><strong>{{ resultRestored ? '最近一次' : '本次' }}答对 {{ score.correctCount }} / {{ score.totalCount }} 题</strong><span>{{ lastAttemptAt ? `完成于 ${lastAttemptAt.slice(0, 10)}` : '练习已保存' }} · 不改变复习安排</span></p><template v-if="score"><button type="button" class="review-button" @click="backToArticle">返回文章核对 ↑</button><button type="button" @click="retryArticle">再练一次</button></template><button v-else type="button" :disabled="!canSubmit" @click="submit">{{ submitting ? '正在保存…' : '查看练习结果' }}</button></div>
         </section>
       </template>
 
@@ -339,15 +339,15 @@ onMounted(() => {
             <TopicPicker v-model="topic" />
             <div class="generate-preview"><span>本次目标词</span><strong>{{ selected.length }} / 8</strong></div>
             <p class="generate-readiness">{{ remainingWords ? `再选 ${remainingWords} 个词，就能开始生成` : '词汇已备好，可以生成文章' }}</p>
-            <button type="button" class="generate-button" :disabled="!canGenerate" @click="generate">{{ generating ? '正在写文章…' : '生成我的文章 ↗' }}</button>
+            <button type="button" class="generate-button" :disabled="!canGenerate" @click="generate">{{ generating ? '正在写文章…' : '生成我的文章' }}</button>
             <div v-if="generating" class="generating-state" role="status"><span class="generating-icon" aria-hidden="true">✦</span><div><strong>正在组织自然语境</strong><span>请稍候，完成后会自动打开文章。</span></div></div>
             <p class="generate-note">文章会保存在你的练习记录中。</p>
           </aside>
         </div>
-        <div class="mobile-generate-bar"><span>{{ remainingWords ? `还需 ${remainingWords} 个词` : `已选 ${selected.length} 个词` }}</span><button type="button" :disabled="!canGenerate" @click="generate">{{ generating ? '正在生成…' : '生成文章 ↗' }}</button></div>
+        <div class="mobile-generate-bar"><span>{{ remainingWords ? `还需 ${remainingWords} 个词` : `已选 ${selected.length} 个词` }}</span><button type="button" :disabled="!canGenerate" @click="generate">{{ generating ? '正在生成…' : '生成文章' }}</button></div>
       </template>
 
-      <section class="history-panel" aria-labelledby="history-title"><div class="history-heading"><span class="eyebrow">YOUR LIBRARY</span><h2 id="history-title">我的语境文章</h2></div><p v-if="historyError" class="history-empty" role="status">练习记录暂时无法加载。<button type="button" class="history-retry" @click="loadHistory">重试</button></p><p v-else-if="!history.length" class="history-empty">生成第一篇文章后，它会出现在这里。</p><div v-else class="history-list"><button v-for="item in history" :key="item.id" type="button" @click="openArticle(item.id)"><span>{{ item.createTime?.slice(0, 10) }}</span><strong>{{ item.title }}</strong><small>{{ item.wordCount }} 个目标词{{ item.topic ? ` · ${item.topic}` : '' }}</small><i aria-hidden="true">↗</i></button></div></section>
+      <section class="history-panel" aria-labelledby="history-title"><div class="history-heading"><span class="eyebrow">YOUR LIBRARY</span><h2 id="history-title">我的语境文章</h2></div><p v-if="historyError" class="history-empty" role="status">练习记录暂时无法加载。<button type="button" class="history-retry" @click="loadHistory">重试</button></p><p v-else-if="!history.length" class="history-empty">生成第一篇文章后，它会出现在这里。</p><div v-else class="history-list"><button v-for="item in history" :key="item.id" type="button" @click="openArticle(item.id)"><span>{{ item.createTime?.slice(0, 10) }}</span><strong>{{ item.title }}</strong><small>{{ item.wordCount }} 个目标词{{ item.topic ? ` · ${item.topic}` : '' }}</small><i aria-hidden="true">→</i></button></div></section>
     </div>
   </main>
 </template>

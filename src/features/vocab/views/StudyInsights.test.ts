@@ -29,8 +29,20 @@ describe('study insights overview', () => {
     expect(api.getStudyHistory).toHaveBeenCalledWith(7)
     expect(wrapper.find('.memory-number').text()).toContain('12')
     expect(wrapper.find('.stage-links').text()).toContain('较稳固5')
+    expect(wrapper.find('.all-words-link').text()).toContain('查看全部已学单词')
     expect(wrapper.find('.recent-summary').text()).toContain('4 次回忆')
     expect(wrapper.text()).toContain('有 2 个词待复习')
+    wrapper.unmount()
+  })
+
+  it('does not offer an empty word list as a next step', async () => {
+    api.getStudyFamiliarity.mockResolvedValueOnce({ data: {
+      learnedCount: 0, learningCount: 0, consolidatingCount: 0, stableCount: 0, dueCount: 0,
+      wordCount: 0, page: 1, pageSize: 20, words: [], attentionWords: []
+    } })
+    const wrapper = mount(StudyInsights, { global: { stubs } })
+    await flushPromises()
+    expect(wrapper.find('.all-words-link').exists()).toBe(false)
     wrapper.unmount()
   })
 

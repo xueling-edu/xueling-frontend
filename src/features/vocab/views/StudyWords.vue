@@ -16,8 +16,8 @@ const initialStage = computed<FamiliarityStage>(() => {
   <main class="words-page">
     <div class="xl-page-shell">
       <PageHeading
-        :items="[{ label: '首页', to: '/' }, { label: '英语学习', to: '/english' }, { label: '学习进度', to: '/english/vocab/insights' }, { label: '单词明细' }]"
-        title="单词明细"
+        :items="[{ label: '首页', to: '/' }, { label: '英语学习', to: '/english' }, { label: '学习进度', to: '/english/vocab/insights' }, { label: '已学单词' }]"
+        title="已学单词"
         description="按记忆阶段和词书，找到想再看一眼的词。"
       />
       <FamiliarityPanel :key="initialStage" :initial-stage="initialStage" />

@@ -5,7 +5,7 @@
         <img src="/logo.svg" alt="" />
         <span>学灵</span>
       </router-link>
-      <router-link class="site-link" to="/welcome">了解学灵 <span aria-hidden="true">↗</span></router-link>
+      <router-link class="site-link" to="/welcome">了解学灵 <span aria-hidden="true">→</span></router-link>
     </header>
 
     <main class="auth-main">
@@ -36,7 +36,7 @@
               <span class="word">curious<span class="word-period">.</span></span>
               <span class="word-card-bottom">
                 <span>{{ wordRevealed ? '好奇的 · 求知欲强的' : '保持一点好奇' }}</span>
-                <span class="word-arrow" aria-hidden="true">↗</span>
+                <span class="word-arrow" aria-hidden="true">{{ wordRevealed ? '⌃' : '⌄' }}</span>
               </span>
             </button>
             <p class="scene-footnote">一点好奇，常常是新一页的开始。</p>
@@ -62,7 +62,7 @@
             >
               <span>✦ 今日一词</span>
               <strong>curious</strong>
-              <small>{{ wordRevealed ? '好奇的 · 求知欲强的' : '轻点揭晓 ↗' }}</small>
+              <small>{{ wordRevealed ? '好奇的 · 求知欲强的' : '轻点揭晓' }}</small>
             </button>
 
             <el-form
@@ -115,7 +115,7 @@
             </el-form>
 
             <div class="form-bottom">
-              <p>还没有账号？<router-link to="/register">创建账号 <span aria-hidden="true">↗</span></router-link></p>
+              <p>还没有账号？<router-link to="/register">创建账号 <span aria-hidden="true">→</span></router-link></p>
             </div>
           </div>
           <p class="panel-note">A thoughtful way to keep learning.</p>
@@ -426,7 +426,6 @@ async function handleLogin() {
 }
 
 .word-arrow { color: var(--xl-brand); font-size: 18px; line-height: 1; }
-.word-card.is-revealed .word-arrow { transform: rotate(135deg); }
 
 .scene-footnote {
   margin: 16px 0 0;

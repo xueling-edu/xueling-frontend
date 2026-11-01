@@ -38,7 +38,7 @@
           <p class="coverage-note">学习覆盖率表示接触过的词，不代表已经掌握。</p>
           <div class="hero-actions">
             <button v-if="studyEnabled" class="primary-action" type="button" @click="router.push('/english/vocab/study')">
-              进入今日学习 <span aria-hidden="true">↗</span>
+              进入今日学习 <span aria-hidden="true">→</span>
             </button>
             <button v-else class="primary-action" type="button" :disabled="updatingPlan || loadingDetail || !!detailError" @click="togglePlan">
               {{ updatingPlan ? '正在加入…' : '＋ 加入学习计划' }}
@@ -141,7 +141,7 @@
             <strong>想自主巩固一组词？</strong>
             <p>勾选列表中的 5–10 词，或按词书顺序选择一组。自由练习不计入每日计划。</p>
           </div>
-          <button type="button" :disabled="words.length < 5 || loadingDetail || !!detailError" @click="reviewDialogVisible = true">按顺序选组 ↗</button>
+          <button type="button" :disabled="words.length < 5 || loadingDetail || !!detailError" @click="reviewDialogVisible = true">按顺序选组</button>
         </div>
       </section>
     </div>
@@ -153,7 +153,7 @@
       </div>
       <div class="selection-actions">
         <button type="button" class="clear-selection" @click="clearSelection">清空</button>
-        <button type="button" class="begin-practice" :disabled="selectedIds.size < 5" @click="startSelectedReview">开始自由练习 ↗</button>
+        <button type="button" class="begin-practice" :disabled="selectedIds.size < 5" @click="startSelectedReview">开始自由练习</button>
       </div>
     </div>
 
@@ -191,7 +191,7 @@
       <div class="group-list">
         <button v-for="group in reviewGroups" :key="group.index" type="button" :disabled="!group.isValid" @click="startReviewWithWords(group.list)">
           <span><strong>{{ group.label }}</strong><small>词书序号 {{ group.range }}</small></span>
-          <span>{{ group.isValid ? group.count + ' 词 ↗' : '词数不足' }}</span>
+          <span>{{ group.isValid ? group.count + ' 词 →' : '词数不足' }}</span>
         </button>
       </div>
     </el-dialog>

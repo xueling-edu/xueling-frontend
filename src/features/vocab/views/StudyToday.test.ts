@@ -13,11 +13,15 @@ const api = vi.hoisted(() => ({
   submitStudyReview: vi.fn(),
   updateStudySettings: vi.fn()
 }))
+const route = vi.hoisted(() => ({ path: '/english/vocab/study', query: {} as Record<string, string>, hash: '' }))
 
 vi.mock('@/features/vocab/api', () => api)
 vi.mock('@/api/translate', () => ({ translateText: vi.fn() }))
 vi.mock('@/stores/user', () => ({ useUserStore: () => ({ userInfo: { id: '7' } }) }))
-vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('vue-router', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useRoute: () => route
+}))
 
 const card = {
   wordId: '123', word: 'hello', meaning: '你好', state: 'NEW',
@@ -36,6 +40,7 @@ describe('today study review recovery', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    route.query = {}
     sessionStorage.clear()
     api.getTodayStudy.mockResolvedValue({ code: 0, data: {
       dueCount: 0, newRemaining: 1, todayReviewed: 0, todayNew: 0, cards: [card]
@@ -47,6 +52,15 @@ describe('today study review recovery', () => {
     api.getStudyFollowups.mockResolvedValue({ code: 0, data: [] })
     api.getStudyFollowupSummary.mockResolvedValue({ code: 0, data: { passed: 0, failed: 0, skipped: 0 } })
     api.recordStudyAction.mockResolvedValue({ code: 0, data: '已记录' })
+  })
+
+  it('opens learning settings from the settings page link', async () => {
+    route.query = { settings: '1' }
+    const wrapper = mountStudy()
+    await flushPromises()
+
+    expect(wrapper.find('el-dialog-stub').attributes('modelvalue')).toBe('true')
+    wrapper.unmount()
   })
 
   it('guides a new learner to choose a book instead of reporting a completed task', async () => {

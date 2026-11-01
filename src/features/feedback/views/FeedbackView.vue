@@ -213,7 +213,7 @@ function formatDate(value: string) {
                 <input id="feedback-contact" v-model="form.contact" type="text" maxlength="100" placeholder="邮箱或其他方便联系你的方式" />
                 <small>只用于这条反馈的后续沟通。</small>
               </div>
-              <div class="form-footer"><p>正在写的内容会自动保存在这台设备上。</p><el-button type="primary" :loading="submitting" @click="submit">提交反馈 <span aria-hidden="true">↗</span></el-button></div>
+              <div class="form-footer"><p>正在写的内容会自动保存在这台设备上。</p><el-button type="primary" :loading="submitting" @click="submit">提交反馈</el-button></div>
             </template>
           </div>
 

@@ -64,10 +64,10 @@ onMounted(async () => {
             <p class="focus-description">{{ focusDescription }}</p>
             <div class="focus-actions">
               <router-link :to="focusActionTo" class="focus-action">
-                {{ focusActionLabel }} <span aria-hidden="true">↗</span>
+                {{ focusActionLabel }} <span aria-hidden="true">→</span>
               </router-link>
               <router-link to="/english/vocab/insights" class="progress-action">
-                查看学习进度 <span aria-hidden="true">↗</span>
+                查看学习进度 <span aria-hidden="true">→</span>
               </router-link>
             </div>
           </div>
@@ -94,7 +94,7 @@ onMounted(async () => {
               <h3>词书管理</h3>
               <p>选择词书，调整学习计划。</p>
             </div>
-            <router-link class="module-link" to="/english/vocab">管理词书 <span aria-hidden="true">↗</span></router-link>
+            <router-link class="module-link" to="/english/vocab">管理词书 <span aria-hidden="true">→</span></router-link>
           </article>
           <article class="module-card article-card">
             <div class="module-icon" aria-hidden="true">
@@ -104,7 +104,7 @@ onMounted(async () => {
               <h3>英语阅读</h3>
               <p>选择文章，在语境中学习。</p>
             </div>
-            <router-link class="module-link" to="/english/articles">浏览文章 <span aria-hidden="true">↗</span></router-link>
+            <router-link class="module-link" to="/english/articles">浏览文章 <span aria-hidden="true">→</span></router-link>
           </article>
           <article class="module-card article-card">
             <div class="module-icon" aria-hidden="true">✦</div>
@@ -112,7 +112,7 @@ onMounted(async () => {
               <h3>词汇语境练习</h3>
               <p>选几个学过的词，读一篇为你生成的短文。</p>
             </div>
-            <router-link class="module-link" to="/english/vocab/context">选择单词 <span aria-hidden="true">↗</span></router-link>
+            <router-link class="module-link" to="/english/vocab/context">选择单词 <span aria-hidden="true">→</span></router-link>
           </article>
         </div>
       </section>

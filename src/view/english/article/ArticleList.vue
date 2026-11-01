@@ -92,7 +92,7 @@ onMounted(async () => {
               <p v-if="article.chineseTitle" class="chinese-title">{{ article.chineseTitle }}</p>
               <p v-if="article.tag" class="summary">{{ article.tag }}</p>
               <p v-if="!article.isFree" class="summary">会员文章</p>
-              <span class="read-link">阅读 <span aria-hidden="true">↗</span></span>
+              <span class="read-link">阅读 <span aria-hidden="true">→</span></span>
             </div>
             <div class="article-image" aria-hidden="true">
               <img v-if="article.imageUrl && !brokenImageIds.has(article.id)" :src="article.imageUrl" alt="" @error="brokenImageIds.add(article.id)" />

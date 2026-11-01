@@ -5,7 +5,7 @@
         <PageBreadcrumb :items="[{ label: '首页', to: '/' }, { label: '英语学习', to: '/english' }, { label: '今日学习' }]" />
         <div class="header-actions">
           <button class="settings-link" type="button" @click="router.push('/english/vocab/insights')">学习进度</button>
-          <button class="settings-link" type="button" @click="openSettings">设置</button>
+          <button class="settings-link" type="button" @click="openSettings">学习设置</button>
         </div>
       </header>
 
@@ -131,7 +131,7 @@
             </template>
             <p v-if="actionError" class="save-error" role="alert">{{ actionError }}</p>
           </div>
-          <button v-else-if="!revealed" class="reveal-button" type="button" @click="reveal">已回忆，查看答案 <span aria-hidden="true">↗</span></button>
+          <button v-else-if="!revealed" class="reveal-button" type="button" @click="reveal">已回忆，查看答案</button>
           <template v-else>
             <p class="rate-prompt">{{ saving ? '正在保存本次评分…' : '揭晓前，你回忆得怎么样？' }}</p>
             <div class="rating-grid">
@@ -158,7 +158,7 @@
 
       <section v-else class="state-panel complete-panel" :class="{ 'is-checked-in': today?.checkedIn, 'has-next-review': !!nextReviewDisplay }">
         <div class="completion-heading">
-          <div class="complete-mark" aria-hidden="true">{{ today?.checkedIn ? '✦' : '↗' }}</div>
+          <div class="complete-mark" aria-hidden="true">{{ today?.checkedIn ? '✦' : '✓' }}</div>
           <div class="completion-copy">
             <span class="completion-eyebrow">{{ today?.checkedIn ? '今日目标达成 · 已打卡' : today?.todayReviewed ? '今日学习 · 暂歇' : '今日学习 · 等待开始' }}</span>
             <h2>{{ today?.checkedIn ? '今天的学习已完成' : today?.todayReviewed ? '当前没有可学卡片' : '今天还没有可学单词' }}</h2>
@@ -182,9 +182,9 @@
         <p v-else-if="planState === 'unknown' && !today?.todayReviewed" class="completion-hint">尚未找到可学的单词，请检查词书计划或稍后重试。</p>
         <p v-else-if="today?.newRemaining && today.newRemaining > 0" class="completion-hint">当前启用的词书没有更多未学单词。</p>
         <div class="complete-actions">
-          <button v-if="today?.checkedIn" class="primary-button" type="button" @click="router.push('/english/vocab/insights#growth-calendar')">查看成长日历 <span aria-hidden="true">↗</span></button>
-          <button v-else-if="today?.todayReviewed" class="primary-button" type="button" @click="router.push('/english/vocab/insights')">查看学习进度 <span aria-hidden="true">↗</span></button>
-          <button v-else class="primary-button" type="button" @click="router.push('/english/vocab')">管理词书 <span aria-hidden="true">↗</span></button>
+          <button v-if="today?.checkedIn" class="primary-button" type="button" @click="router.push('/english/vocab/insights#growth-calendar')">查看成长日历 <span aria-hidden="true">→</span></button>
+          <button v-else-if="today?.todayReviewed" class="primary-button" type="button" @click="router.push('/english/vocab/insights')">查看学习进度 <span aria-hidden="true">→</span></button>
+          <button v-else class="primary-button" type="button" @click="router.push('/english/vocab')">管理词书 <span aria-hidden="true">→</span></button>
           <button class="text-button" type="button" @click="loadToday">检查新任务</button>
           <button v-if="today?.todayReviewed" class="text-button" type="button" @click="router.push('/english/vocab')">管理词书</button>
         </div>
@@ -197,7 +197,7 @@
     </div>
 
     <WordIssueDialog v-if="issueTarget" :target="issueTarget" @close="issueTarget = null" />
-    <el-dialog v-model="settingsOpen" title="学习设置" width="min(92vw, 440px)">
+    <el-dialog v-model="settingsOpen" title="学习设置" width="min(92vw, 440px)" @closed="clearSettingsQuery">
       <el-form v-if="settingsDraft" label-position="top">
         <el-form-item label="每天最多学习新词">
           <el-input-number v-model="settingsDraft.dailyNewLimit" :min="0" :max="100" />
@@ -223,7 +223,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getStudyFollowups, getStudyFollowupSummary, recordStudyAction, getStudySettings, getTodayStudy, getWordBooks, submitStudyReview, updateStudySettings } from '@/features/vocab/api'
 import type { StudyFollowup, StudyQueueCard, StudySettings, SubmitStudyReview, TodayStudy } from '@/features/vocab/types'
@@ -239,6 +239,7 @@ import type { CorrectionTarget } from '@/features/feedback/WordIssueDialog.vue'
 import { cancelEnglishWord, preloadEnglishWord, speakEnglishWord } from '@/utils/wordSpeech'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 const today = ref<TodayStudy | null>(null)
 const planState = ref<'unknown' | 'none' | 'ready'>('unknown')
@@ -578,6 +579,12 @@ async function openSettings() {
   }
 }
 
+function clearSettingsQuery() {
+  if (route.query.settings === '1') {
+    void router.replace({ path: route.path, query: { ...route.query, settings: undefined }, hash: route.hash })
+  }
+}
+
 async function saveSettings() {
   if (!settingsDraft.value) return
   savingSettings.value = true
@@ -595,6 +602,7 @@ async function saveSettings() {
 }
 
 onMounted(async () => {
+  if (route.query.settings === '1') void openSettings()
   timeRefresh = setInterval(() => { currentTime.value = Date.now() }, 60_000)
   window.addEventListener('keydown', handleKeydown)
   followup.value = restoreFollowup(userStore.userInfo?.id)

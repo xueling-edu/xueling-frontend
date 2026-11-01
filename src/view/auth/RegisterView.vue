@@ -5,7 +5,7 @@
         <img src="/logo.svg" alt="" />
         <span>学灵</span>
       </router-link>
-      <router-link class="site-link" to="/login">已有账号？登录 <span aria-hidden="true">↗</span></router-link>
+      <router-link class="site-link" to="/login">已有账号？登录 <span aria-hidden="true">→</span></router-link>
     </header>
 
     <main class="auth-main">
@@ -23,7 +23,7 @@
             <div class="preview-meta"><span>YOUR LEARNING PATH</span><span>01 — 03</span></div>
             <div class="preview-heading"><span class="preview-spark" aria-hidden="true">✳</span><div><strong>一段有节奏的学习</strong><small>从第一本词书开始</small></div></div>
             <ol class="preview-steps">
-              <li><span class="step-number">01</span><div><strong>选一本词书</strong><small>从你感兴趣的内容开始</small></div><span class="step-mark" aria-hidden="true">↗</span></li>
+              <li><span class="step-number">01</span><div><strong>选一本词书</strong><small>从你感兴趣的内容开始</small></div></li>
               <li><span class="step-number">02</span><div><strong>每天学一点</strong><small>新词和复习，按自己的节奏来</small></div></li>
               <li><span class="step-number">03</span><div><strong>看见每次积累</strong><small>学习记录会替你记住走过的路</small></div></li>
             </ol>
@@ -132,7 +132,7 @@
               </el-form-item>
             </el-form>
 
-            <div class="form-bottom"><p>已有账号？<router-link to="/login">立即登录 <span aria-hidden="true">↗</span></router-link></p></div>
+            <div class="form-bottom"><p>已有账号？<router-link to="/login">立即登录 <span aria-hidden="true">→</span></router-link></p></div>
           </div>
           <p class="panel-note">A thoughtful way to keep learning.</p>
         </div>
@@ -485,7 +485,6 @@ onUnmounted(() => {
 .preview-steps li div { min-width: 0; }
 .preview-steps strong { display: block; font-size: 13px; font-weight: 800; }
 .preview-steps small { display: block; margin-top: 3px; color: #728372; font-size: 10px; line-height: 1.5; }
-.step-mark { margin-left: auto; align-self: flex-start; margin-top: 13px; color: #ad8547; font-size: 19px; }
 .preview-footer { margin-inline: -25px; padding: 9px 25px; border-top: 1px solid #e2e7db; }
 .preview-footer span:last-child { color: #b98947; font-size: 17px; line-height: 1; }
 

@@ -19,7 +19,7 @@ function resetPreview() {
         <nav class="header-nav" aria-label="主导航">
           <a href="#how-it-works">学习方式</a>
           <router-link class="login-link" to="/login">登录</router-link>
-          <router-link class="header-cta" to="/register">创建账号 <span aria-hidden="true">↗</span></router-link>
+          <router-link class="header-cta" to="/register">创建账号 <span aria-hidden="true">→</span></router-link>
         </nav>
       </div>
     </header>
@@ -31,7 +31,7 @@ function resetPreview() {
           <h1 id="hero-title">让新词，<br /><em>留在记忆里。</em></h1>
           <p class="hero-description">先试着回忆，再揭晓释义。学灵根据你的掌握情况安排复习，也让你在文章中继续遇见学过的表达。</p>
           <div class="hero-actions">
-            <router-link class="primary-link" to="/register">免费创建账号 <span aria-hidden="true">↗</span></router-link>
+            <router-link class="primary-link" to="/register">免费创建账号 <span aria-hidden="true">→</span></router-link>
             <a class="secondary-link" href="#preview">先体验学习卡片 ↓</a>
           </div>
           <p class="hero-note">注册后选择一本词书，就能开始今天的学习。</p>
@@ -44,7 +44,7 @@ function resetPreview() {
             <p class="preview-word">curious</p>
             <template v-if="previewStep === 'recall'">
               <p class="preview-hint">看到英文后，先在心里想出它的意思。</p>
-              <button class="preview-primary" type="button" @click="previewStep = 'answer'">查看答案 <span aria-hidden="true">↗</span></button>
+              <button class="preview-primary" type="button" @click="previewStep = 'answer'">查看答案</button>
             </template>
             <template v-else-if="previewStep === 'answer'">
               <p class="preview-meaning"><span>中文释义</span>好奇的；求知欲强的</p>
@@ -56,7 +56,7 @@ function resetPreview() {
             </template>
             <template v-else>
               <p class="preview-hint">正式学习时，学灵会根据你的评分安排下次复习。</p>
-              <button class="preview-primary" type="button" @click="resetPreview">再体验一次 <span aria-hidden="true">↗</span></button>
+              <button class="preview-primary" type="button" @click="resetPreview">再体验一次</button>
             </template>
           </div>
           <p class="preview-footnote">这是交互预览，不会记录学习进度。</p>
@@ -74,7 +74,7 @@ function resetPreview() {
 
       <section class="closing" aria-label="开始学习">
         <div><p class="eyebrow">READY WHEN YOU ARE</p><h2>今天，从一个单词开始。</h2></div>
-        <router-link class="primary-link" to="/register">创建账号，开始学习 <span aria-hidden="true">↗</span></router-link>
+        <router-link class="primary-link" to="/register">创建账号，开始学习 <span aria-hidden="true">→</span></router-link>
       </section>
     </main>
 

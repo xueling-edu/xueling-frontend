@@ -8,7 +8,7 @@
       >
         <template #actions>
           <div class="header-actions">
-            <router-link class="header-progress" to="/english/vocab/insights">学习进度 <span aria-hidden="true">↗</span></router-link>
+            <router-link class="header-progress" to="/english/vocab/insights">学习进度 <span aria-hidden="true">→</span></router-link>
             <button class="header-create" type="button" @click="dialogVisible = true">＋ 新建词书</button>
           </div>
         </template>
@@ -56,7 +56,7 @@
               </div>
             </div>
             <div class="book-actions">
-              <button class="open-book" type="button" @click="handleBookClick(book.id)">查看词书 <span aria-hidden="true">↗</span></button>
+              <button class="open-book" type="button" @click="handleBookClick(book.id)">查看词书 <span aria-hidden="true">→</span></button>
               <button class="plan-toggle" :class="{ enabled: book.studyEnabled }" type="button" :disabled="busyBookId === book.id" :aria-pressed="!!book.studyEnabled" @click="toggleBook(book)">
                 {{ busyBookId === book.id ? '更新中…' : book.studyEnabled ? '✓ 已加入计划' : '＋ 加入计划' }}
               </button>

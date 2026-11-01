@@ -134,7 +134,7 @@ onUnmounted(() => { document.removeEventListener('click', closeJumpOnOutsideClic
                   :aria-pressed="choice.value === calendar.month" :disabled="choice.disabled"
                   @click="jumpTo(choice.value)">{{ choice.number }} 月</button>
               </div>
-              <button type="button" class="jump-current" @click="jumpTo(currentMonth)">回到本月 ↗</button>
+              <button type="button" class="jump-current" @click="jumpTo(currentMonth)">回到本月</button>
             </div>
         </div>
         <div class="month-controls" role="group" aria-label="逐月翻页">
@@ -182,7 +182,7 @@ onUnmounted(() => { document.removeEventListener('click', closeJumpOnOutsideClic
               <div><dt>新词</dt><dd>{{ selected.newWords }} 个</dd></div>
               <div><dt>用时</dt><dd>{{ formatTime(selected.studyTimeMs) }}</dd></div>
             </dl>
-            <router-link v-if="selected.date === calendar.today && !selected.checkedIn" to="/english/vocab/study" class="study-action">继续今日学习 ↗</router-link>
+            <router-link v-if="selected.date === calendar.today && !selected.checkedIn" to="/english/vocab/study" class="study-action">继续今日学习 →</router-link>
           </template>
         </aside>
       </div>

@@ -61,7 +61,6 @@ onMounted(() => {
         <section class="memory-story" aria-labelledby="memory-story-title">
           <div class="story-heading">
             <div><span class="eyebrow">MEMORY MAP / 记忆地图</span><h2 id="memory-story-title">这些词，记得怎么样？</h2></div>
-            <router-link class="story-link" to="/english/vocab/insights/words">查看单词明细 <span aria-hidden="true">↗</span></router-link>
           </div>
           <div v-if="memory" class="memory-story-body">
             <div class="memory-number"><strong>{{ memory.learnedCount }}</strong><span>个已学单词</span></div>
@@ -78,13 +77,14 @@ onMounted(() => {
           </div>
           <p v-else-if="memoryError" class="story-state" role="alert">记忆状态暂时无法读取。<button type="button" @click="loadMemory">重试</button></p>
           <p v-else class="story-state" role="status">正在整理记忆状态…</p>
+          <router-link v-if="memory?.learnedCount" class="story-link all-words-link" to="/english/vocab/insights/words">查看全部已学单词 <span aria-hidden="true">→</span></router-link>
           <router-link v-if="memory?.dueCount" class="due-note" to="/english/vocab/study">有 {{ memory.dueCount }} 个词待复习 <span aria-hidden="true">→</span></router-link>
         </section>
 
         <section class="recent-story" aria-labelledby="recent-story-title">
           <div class="story-heading">
             <div><span class="eyebrow">STUDY RHYTHM / 学习节奏</span><h2 id="recent-story-title">最近七天</h2></div>
-            <router-link class="story-link" to="/english/vocab/insights/history">完整记录 <span aria-hidden="true">↗</span></router-link>
+            <router-link class="story-link" to="/english/vocab/insights/history">完整记录 <span aria-hidden="true">→</span></router-link>
           </div>
           <template v-if="recentDays">
             <p class="recent-summary"><strong>{{ recentReviews }}</strong> 次回忆 <span>·</span> {{ recentNewWords }} 个新词</p>
@@ -109,6 +109,7 @@ onMounted(() => {
 .story-heading h2 { margin:8px 0 0; font:650 clamp(24px,2.5vw,31px)/1.2 var(--xl-font-display); }
 .story-link { flex:none; padding-bottom:3px; color:var(--xl-brand); font-size:13px; font-weight:800; text-decoration:none; white-space:nowrap; }
 .story-link:hover,.due-note:hover { text-decoration:underline; text-underline-offset:4px; }
+.all-words-link { display:flex; width:max-content; gap:8px; margin-top:17px; }
 .memory-story-body { display:grid; grid-template-columns:130px minmax(0,1fr); gap:26px; align-items:center; padding:25px 0; border-top:1px solid var(--xl-border); border-bottom:1px solid var(--xl-border); }
 .memory-number { display:flex; flex-direction:column; gap:5px; }
 .memory-number strong { font:650 52px/1 var(--xl-font-display); font-variant-numeric:tabular-nums; }

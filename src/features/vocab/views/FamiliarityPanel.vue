@@ -148,7 +148,7 @@ onUnmounted(() => document.removeEventListener('click', closeBookOnOutsideClick)
           </div>
         </div>
         <router-link class="due-callout" to="/english/vocab/study">
-          <span>现在待复习</span><strong>{{ data.dueCount }}</strong><small>去完成今日学习 ↗</small>
+          <span>现在待复习</span><strong>{{ data.dueCount }}</strong><small>去完成今日学习 →</small>
         </router-link>
       </div>
       <p class="metric-note">“较稳固”表示 FSRS 估计的记忆稳定性达到 30 天，并不表示永远不会忘记。已到期的单词仍应按计划复习。</p>
@@ -176,8 +176,8 @@ onUnmounted(() => document.removeEventListener('click', closeBookOnOutsideClick)
           <ol v-else>
             <li v-for="word in data.attentionWords" :key="word.wordId"><div><strong>{{ word.word }}</strong><span>{{ word.meaning }}</span></div><small>{{ word.lastRating === 1 ? '上次忘记' : `已遗忘 ${word.lapseCount} 次` }}{{ !word.inStudyPlan ? ' · 已暂停' : word.due ? ' · 待复习' : '' }}</small></li>
           </ol>
-          <router-link v-if="data.attentionWords.some(word => word.inStudyPlan)" class="attention-link" to="/english/vocab/study">按计划复习 ↗</router-link>
-          <router-link v-else-if="data.attentionWords.length" class="attention-link" to="/english/vocab">管理学习计划 ↗</router-link>
+          <router-link v-if="data.attentionWords.some(word => word.inStudyPlan)" class="attention-link" to="/english/vocab/study">按计划复习 →</router-link>
+          <router-link v-else-if="data.attentionWords.length" class="attention-link" to="/english/vocab">管理学习计划 →</router-link>
         </section>
       </div>
     </template>

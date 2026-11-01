@@ -78,7 +78,7 @@ async function handleCommand(command: string) {
           </span>
           <span class="subject-side" aria-hidden="true">
             <span class="subject-art"><span class="art-card art-card-back"></span><span class="art-card art-card-front"><b>word</b><i></i><i></i></span></span>
-            <span class="subject-cta">进入英语学习 <span>↗</span></span>
+            <span class="subject-cta">进入英语学习 <span>→</span></span>
           </span>
         </router-link>
       </section>
