@@ -3,56 +3,43 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import StudyInsights from './StudyInsights.vue'
 
-const api = vi.hoisted(() => ({
-  getStudyHistory: vi.fn(),
-  getStudyReviewCounts: vi.fn()
-}))
+const api = vi.hoisted(() => ({ getStudyFamiliarity: vi.fn(), getStudyHistory: vi.fn() }))
 vi.mock('@/features/vocab/api', () => api)
-vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+const stubs = { RouterLink: { template: '<a><slot /></a>' }, StudyGrowthCalendar: true }
 
-describe('study insights', () => {
+describe('study insights overview', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    api.getStudyHistory.mockImplementation((days: number) => Promise.resolve({ data: [{
-      date: '2026-10-20', reviewCount: days === 7 ? 0 : 4,
-      newWords: 1, studyTimeMs: 60000, dueRecallAttempts: days === 7 ? 0 : 2,
-      dueRecallRate: days === 7 ? null : 0.5, goodOrEasyRate: days === 7 ? null : 0.5, dueBacklog: 3
-    }] }))
-    api.getStudyReviewCounts.mockResolvedValue({ data: {
-      once: 1, twice: 2, threeToFive: 3, sixOrMore: 4
+    window.location.hash = ''
+    api.getStudyFamiliarity.mockResolvedValue({ data: {
+      learnedCount: 12, learningCount: 3, consolidatingCount: 4, stableCount: 5, dueCount: 2,
+      wordCount: 12, page: 1, pageSize: 20, words: [], attentionWords: []
     } })
+    api.getStudyHistory.mockResolvedValue({ data: [
+      { date: '2026-10-20', reviewCount: 4, newWords: 1, studyTimeMs: 60000,
+        dueRecallAttempts: 2, dueRecallRate: 0.5, goodOrEasyRate: 0.5, dueBacklog: 0 }
+    ] })
   })
 
-  it('shows no recall rate without samples and updates the selected range', async () => {
-    const wrapper = mount(StudyInsights, { global: { stubs: { FamiliarityPanel: true } } })
+  it('keeps the calendar visible and summarizes memory and recent study', async () => {
+    const wrapper = mount(StudyInsights, { global: { stubs } })
     await flushPromises()
-    expect(wrapper.text()).toContain('样本 0 次')
-    expect(wrapper.text()).toContain('每词回忆次数')
-
-    await wrapper.findAll('.range-switch button')[1]!.trigger('click')
-    await flushPromises()
-    expect(api.getStudyHistory).toHaveBeenLastCalledWith(30)
-    expect(wrapper.text()).toContain('样本 2 次')
-    expect(wrapper.text()).toContain('50%')
+    expect(wrapper.find('study-growth-calendar-stub').exists()).toBe(true)
+    expect(api.getStudyFamiliarity).toHaveBeenCalledWith({ stage: 'ALL', page: 1 })
+    expect(api.getStudyHistory).toHaveBeenCalledWith(7)
+    expect(wrapper.find('.memory-number').text()).toContain('12')
+    expect(wrapper.find('.stage-links').text()).toContain('较稳固5')
+    expect(wrapper.find('.recent-summary').text()).toContain('4 次回忆')
+    expect(wrapper.text()).toContain('有 2 个词待复习')
     wrapper.unmount()
   })
 
-  it('keeps the newest range when responses arrive out of order', async () => {
-    let resolveSeven!: (value: unknown) => void
-    let resolveThirty!: (value: unknown) => void
-    const seven = new Promise(resolve => { resolveSeven = resolve })
-    const thirty = new Promise(resolve => { resolveThirty = resolve })
-    api.getStudyHistory.mockImplementation((value: number) => value === 7 ? seven : thirty)
-    const wrapper = mount(StudyInsights, { global: { stubs: { FamiliarityPanel: true } } })
-    await wrapper.findAll('.range-switch button')[1]!.trigger('click')
-    resolveThirty({ data: [{ date: '2026-10-20', reviewCount: 30, newWords: 0,
-      studyTimeMs: 0, dueRecallAttempts: 0, dueRecallRate: null, goodOrEasyRate: null, dueBacklog: 0 }] })
+  it('shows the calendar directly from the growth-calendar link', async () => {
+    window.location.hash = '#growth-calendar'
+    const wrapper = mount(StudyInsights, { global: { stubs } })
     await flushPromises()
-    resolveSeven({ data: [{ date: '2026-10-20', reviewCount: 7, newWords: 0,
-      studyTimeMs: 0, dueRecallAttempts: 0, dueRecallRate: null, goodOrEasyRate: null, dueBacklog: 0 }] })
-    await flushPromises()
-    expect(wrapper.text()).toContain('30 次')
-    expect(wrapper.text()).not.toContain('7 次')
+    expect(wrapper.find('study-growth-calendar-stub').exists()).toBe(true)
     wrapper.unmount()
+    window.location.hash = ''
   })
 })

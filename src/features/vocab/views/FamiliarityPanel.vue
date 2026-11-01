@@ -3,6 +3,8 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { getStudyFamiliarity, getStudySettings, getWordBooks } from '@/features/vocab/api'
 import type { FamiliarityStage, StudyFamiliarity, StudyFamiliarityWord, WordBookVo } from '@/features/vocab/types'
 
+const props = withDefaults(defineProps<{ initialStage?: FamiliarityStage }>(), { initialStage: 'ALL' })
+
 const books = ref<WordBookVo[]>([])
 const bookId = ref('')
 const bookOpen = ref(false)
@@ -10,7 +12,7 @@ const bookQuery = ref('')
 const bookFilter = ref<HTMLElement | null>(null)
 const bookTrigger = ref<HTMLButtonElement | null>(null)
 const bookSearch = ref<HTMLInputElement | null>(null)
-const stage = ref<FamiliarityStage>('ALL')
+const stage = ref<FamiliarityStage>(props.initialStage)
 const page = ref(1)
 const data = ref<StudyFamiliarity | null>(null)
 const loading = ref(true)
@@ -183,7 +185,7 @@ onUnmounted(() => document.removeEventListener('click', closeBookOnOutsideClick)
 </template>
 
 <style scoped>
-.familiarity { margin-top: 30px; }
+.familiarity { margin-top: 0; }
 .familiarity-heading { display:flex; align-items:end; justify-content:space-between; gap:24px; margin-bottom:18px; }
 .eyebrow { color:#65836c; font-size:11px; font-weight:800; letter-spacing:.13em; }
 .familiarity h2 { margin:8px 0 7px; font:650 clamp(25px,3vw,34px)/1.2 var(--xl-font-display); }

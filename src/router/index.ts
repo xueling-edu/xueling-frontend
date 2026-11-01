@@ -6,6 +6,12 @@ import RegisterView from '@/view/auth/RegisterView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) return savedPosition
+    if (!to.path.startsWith('/english/vocab/insights') && !from.path.startsWith('/english/vocab/insights')) return
+    if (to.hash) return { el: to.hash }
+    return { top: 0 }
+  },
   routes: [
     {
       path: '/welcome',
@@ -53,6 +59,18 @@ const router = createRouter({
       path: '/english/vocab/insights',
       name: 'english-vocab-insights',
       component: () => import('@/features/vocab/views/StudyInsights.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/english/vocab/insights/words',
+      name: 'english-vocab-insights-words',
+      component: () => import('@/features/vocab/views/StudyWords.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/english/vocab/insights/history',
+      name: 'english-vocab-insights-history',
+      component: () => import('@/features/vocab/views/StudyHistory.vue'),
       meta: { requiresAuth: true }
     },
     {

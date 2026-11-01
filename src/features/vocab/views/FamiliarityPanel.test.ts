@@ -41,6 +41,13 @@ describe('familiarity panel', () => {
     wrapper.unmount()
   })
 
+  it('opens a linked memory stage directly', async () => {
+    const wrapper = mount(FamiliarityPanel, { props: { initialStage: 'STABLE' }, global: { stubs: { RouterLink: true } } })
+    await flushPromises()
+    expect(api.getStudyFamiliarity).toHaveBeenCalledWith({ bookId: undefined, stage: 'STABLE', page: 1 })
+    wrapper.unmount()
+  })
+
   it('shows a learned word outside the active plan as paused', async () => {
     api.getStudyFamiliarity.mockResolvedValueOnce({ data: {
       ...result,
