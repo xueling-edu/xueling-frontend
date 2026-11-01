@@ -142,17 +142,22 @@ onMounted(async () => {
 
       <div class="profile-layout">
         <aside class="identity-card" aria-label="账户信息">
-          <div class="avatar-area">
+          <div class="identity-top">
             <el-avatar :size="86" :src="userStore.avatar" class="user-avatar">{{ userStore.username?.charAt(0)?.toUpperCase() || 'U' }}</el-avatar>
-            <button type="button" class="avatar-change" :disabled="isUploading" @click="fileInputRef?.click()">
-              {{ isUploading ? '上传中…' : '更换头像' }}
-            </button>
+            <div class="identity-copy">
+              <p class="identity-eyebrow">我的账户</p>
+              <h2>{{ userStore.username || '未设置昵称' }}</h2>
+              <p class="account-email">{{ userStore.userInfo?.email || '尚未绑定邮箱' }}</p>
+              <button type="button" class="avatar-change" :disabled="isUploading" @click="fileInputRef?.click()">
+                {{ isUploading ? '上传中…' : '更换头像' }}
+              </button>
+            </div>
             <input ref="fileInputRef" type="file" accept="image/*" class="sr-only" aria-label="选择新头像" @change="handleAvatarChange" />
           </div>
-          <h2>{{ userStore.username || '未设置昵称' }}</h2>
-          <p class="account-email">{{ userStore.userInfo?.email }}</p>
-          <button type="button" class="profile-edit" @click="startEditing">编辑个人资料</button>
-          <router-link class="profile-settings" to="/settings">设置 <span aria-hidden="true">→</span></router-link>
+          <div class="identity-actions">
+            <button type="button" class="profile-edit" @click="startEditing">编辑资料</button>
+            <router-link class="profile-settings" to="/settings">设置 <span aria-hidden="true">→</span></router-link>
+          </div>
           <button type="button" class="logout-link" @click="handleLogout">退出登录</button>
         </aside>
 
@@ -183,18 +188,26 @@ onMounted(async () => {
               </div>
               <span class="settings-hint">邮箱暂不支持修改</span>
             </div>
-            <el-form label-position="top" class="profile-form" @submit.prevent="saveProfile">
-              <el-form-item label="用户名"><el-input v-model="form.username" :disabled="!isEditing" maxlength="30" /></el-form-item>
+            <dl v-if="!isEditing" class="profile-details">
+              <div><dt>用户名</dt><dd>{{ form.username || '未填写' }}</dd></div>
+              <div><dt>邮箱</dt><dd>{{ form.email || '未填写' }}</dd></div>
+              <div><dt>手机号</dt><dd>{{ form.phone || '未填写' }}</dd></div>
+              <div><dt>性别</dt><dd>{{ form.gender === 1 ? '男' : form.gender === 2 ? '女' : '未设置' }}</dd></div>
+              <div><dt>生日</dt><dd>{{ form.birthday || '未设置' }}</dd></div>
+              <div class="detail-wide"><dt>个人简介</dt><dd>{{ form.bio || '还没有填写个人简介' }}</dd></div>
+            </dl>
+            <el-form v-else label-position="top" class="profile-form" @submit.prevent="saveProfile">
+              <el-form-item label="用户名"><el-input v-model="form.username" maxlength="30" /></el-form-item>
               <el-form-item label="邮箱"><el-input v-model="form.email" disabled /></el-form-item>
-              <el-form-item label="手机号"><el-input v-model="form.phone" :disabled="!isEditing" /></el-form-item>
+              <el-form-item label="手机号"><el-input v-model="form.phone" /></el-form-item>
               <el-form-item label="性别">
-                <el-select v-model="form.gender" :disabled="!isEditing" style="width: 100%">
+                <el-select v-model="form.gender" style="width: 100%">
                   <el-option label="未设置" :value="0" /><el-option label="男" :value="1" /><el-option label="女" :value="2" />
                 </el-select>
               </el-form-item>
-              <el-form-item label="生日"><el-date-picker v-model="form.birthday" type="date" value-format="YYYY-MM-DD" format="YYYY-MM-DD" :disabled="!isEditing" style="width: 100%" /></el-form-item>
-              <el-form-item label="个人简介" class="wide-field"><el-input v-model="form.bio" type="textarea" :rows="3" :disabled="!isEditing" /></el-form-item>
-              <div v-if="isEditing" class="form-actions">
+              <el-form-item label="生日"><el-date-picker v-model="form.birthday" type="date" value-format="YYYY-MM-DD" format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
+              <el-form-item label="个人简介" class="wide-field"><el-input v-model="form.bio" type="textarea" :rows="3" /></el-form-item>
+              <div class="form-actions">
                 <el-button type="primary" native-type="submit" :loading="isSaving">保存修改</el-button>
                 <el-button @click="cancelEditing">取消</el-button>
               </div>
@@ -213,11 +226,9 @@ onMounted(async () => {
 .profile-layout { display: grid; grid-template-columns: minmax(230px, .72fr) minmax(0, 1.8fr); gap: 22px; align-items: start; }
 .identity-card, .overview-card, .settings-card { background: var(--xl-surface); border: 1px solid var(--xl-border); border-radius: var(--xl-radius-md); }
 .identity-card { padding: 30px 24px; text-align: center; }
-.avatar-area { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .user-avatar { background: var(--xl-brand); color: white; font: 600 38px var(--xl-font-display); }
 .avatar-change, .logout-link { border: 0; background: transparent; color: var(--xl-brand); font-size: 12px; font-weight: 700; cursor: pointer; }
 .avatar-change:disabled { opacity: .6; cursor: wait; }
-.identity-card h2 { margin: 20px 0 6px; font: 650 27px/1.25 var(--xl-font-display); overflow-wrap: anywhere; }
 .account-email { color: var(--xl-ink-soft); font-size: 13px; overflow-wrap: anywhere; }
 .profile-edit { width: 100%; display: flex; justify-content: center; margin-top: 30px; padding: 13px 16px; background: var(--xl-brand); border: 0; border-radius: var(--xl-radius-sm); color: white; font-weight: 750; cursor: pointer; }
 .profile-edit:hover, .study-link:hover { background: var(--xl-brand-hover); }
@@ -250,7 +261,64 @@ onMounted(async () => {
 .logout-link:hover { background: #f8eee8; text-decoration: none; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 button:focus-visible, a:focus-visible { outline: 3px solid var(--xl-accent); outline-offset: 3px; }
-@media (max-width: 760px) { .profile-layout { grid-template-columns: 1fr; }.identity-card { text-align: left; }.avatar-area { align-items: start; }.profile-edit { max-width: 260px; }.section-heading { align-items: start; flex-direction: column; }.overview-card, .settings-card { padding: 24px 20px; } }
-@media (max-width: 480px) { .profile-form { grid-template-columns: 1fr; }.overview-stats > div { padding: 16px 8px; }.overview-stats strong { font-size: 27px; }.overview-stats span, .overview-stats small { font-size: 11px; } }
 @media (prefers-reduced-motion: reduce) { .profile-edit, .study-link { transition: none; }.profile-edit:hover, .study-link:hover, .profile-edit:active, .study-link:active { transform: none; } }
+.identity-top { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.identity-copy { min-width: 0; width: 100%; }
+.identity-eyebrow { display: none; }
+.identity-copy h2 { margin: 20px 0 6px; font: 650 27px/1.25 var(--xl-font-display); overflow-wrap: anywhere; }
+.identity-actions { display: grid; gap: 10px; margin-top: 26px; }
+.identity-actions .profile-edit, .identity-actions .profile-settings { width: 100%; max-width: none; margin: 0; }
+.avatar-change { margin-top: 12px; }
+.identity-card .logout-link { margin-top: 18px; }
+.profile-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; border-top: 1px solid var(--xl-border); }
+.profile-details > div { min-width: 0; padding: 17px 0; border-bottom: 1px solid var(--xl-border); }
+.profile-details > div:nth-child(odd) { padding-right: 16px; }
+.profile-details > div:nth-child(even) { padding-left: 16px; }
+.profile-details > .detail-wide { grid-column: 1 / -1; padding-left: 0; padding-right: 0; }
+.profile-details dt { margin-bottom: 7px; color: var(--xl-ink-soft); font-size: 12px; }
+.profile-details dd { margin: 0; color: var(--xl-ink); font-size: 14px; font-weight: 650; line-height: 1.55; overflow-wrap: anywhere; white-space: pre-wrap; }
+@media (max-width: 760px) {
+  .page-shell { max-width: 620px; }
+  .page-shell :deep(.page-heading) { margin-bottom: 22px; }
+  .profile-layout { grid-template-columns: 1fr; gap: 16px; }
+  .profile-main { gap: 16px; }
+  .identity-card { padding: 22px; text-align: left; }
+  .identity-top { flex-direction: row; align-items: center; gap: 17px; text-align: left; }
+  .user-avatar { flex: none; width: 72px !important; height: 72px !important; font-size: 30px; }
+  .identity-eyebrow { display: block; color: var(--xl-brand); font-size: 11px; font-weight: 800; letter-spacing: .12em; }
+  .identity-copy h2 { margin: 4px 0 3px; font-size: 23px; }
+  .account-email { font-size: 12px; }
+  .avatar-change { min-height: 44px; margin-top: 2px; padding: 0; border: 0; background: transparent; box-shadow: none; font-size: 12px; }
+  .avatar-change:hover:not(:disabled) { background: transparent; text-decoration: underline; }
+  .identity-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 18px; }
+  .identity-actions .profile-edit, .identity-actions .profile-settings { justify-content: center; min-height: 44px; }
+  .identity-card .logout-link { width: 100%; min-height: 44px; margin-top: 18px; border-top: 1px solid var(--xl-border); border-radius: 0; }
+  .overview-card, .settings-card { padding: 22px; }
+  .section-heading { flex-direction: row; align-items: end; }
+  .section-heading h2 { font-size: 23px; }
+  .section-heading a { text-align: right; }
+  .overview-stats { grid-template-columns: 1fr; }
+  .overview-stats > div, .overview-stats > div:first-child { flex-direction: row; align-items: baseline; justify-content: space-between; gap: 8px; padding: 12px 0; border-right: 0; border-bottom: 1px solid var(--xl-border); }
+  .overview-stats > div:last-child { border-bottom: 0; }
+  .overview-stats span { flex: 1; font-size: 13px; }
+  .overview-stats strong { font-size: 27px; }
+  .overview-stats small { min-width: 44px; font-size: 12px; }
+  .study-link { display: flex; width: 100%; margin-top: 18px; }
+  .settings-hint { max-width: 80px; text-align: right; line-height: 1.4; }
+}
+@media (max-width: 480px) {
+  .identity-card, .overview-card, .settings-card { padding: 20px 18px; }
+  .profile-form { grid-template-columns: 1fr; }
+  .identity-top { gap: 14px; }
+  .user-avatar { width: 64px !important; height: 64px !important; font-size: 27px; }
+  .identity-copy h2 { font-size: 21px; }
+  .section-heading { gap: 8px; }
+  .section-heading h2 { font-size: 21px; }
+  .section-heading a { font-size: 12px; }
+  .profile-details { grid-template-columns: 1fr; }
+  .profile-details > div:nth-child(odd), .profile-details > div:nth-child(even) { padding: 13px 0; }
+  .profile-details .detail-wide { grid-column: auto; }
+  .form-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .form-actions .el-button { margin-left: 0; }
+}
 </style>
