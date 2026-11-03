@@ -415,6 +415,7 @@ import { useUserStore } from '@/stores/user'
 import { useArticleStore } from '@/stores/article'
 import { ElMessage } from 'element-plus'
 import { analyzeSentence, getArticleTranslation, getVocabularyPhrases } from '@/api/article'
+import { parseArticleTranslation } from '@/utils/articleTranslation'
 import { safeMarkdown } from '@/utils/safeMarkdown'
 import type { ArticleVO } from '@/types/article'
 import SelectionWordLookup from '@/components/SelectionWordLookup.vue'
@@ -452,7 +453,8 @@ const toast = ref({
 })
 const showTranslateDrawer = ref(false)
 const translationLoading = ref(false)
-const translationContent = ref<any>(null)
+const translationContent = ref<string[] | null>(null)
+let translationRequestId = 0
 const fontScale = ref(0)
 const selectedSentence = ref('')
 const pageProgress = ref(0)
@@ -850,77 +852,29 @@ const toggleTranslation = async () => {
  */
 const getParagraphTranslation = (paragraphIndex: number | string) => {
   const index = Number(paragraphIndex)
-  if (!translationContent.value?.blocks || !Array.isArray(translationContent.value.blocks)) {
-    return ''
-  }
-
-  // 直接使用段落索引获取对应的翻译块
-  // 翻译块应该与英文段落一一对应
-  const block = translationContent.value.blocks[paragraphIndex]
-  if (!block) {
-    return ''
-  }
-
-  // 如果是标题，返回标题文本
-  if (block.type === 'heading') {
-    return block.text || ''
-  }
-
-  // 如果是段落，返回段落文本
-  if (block.type === 'paragraph') {
-    return block.sentences?.join('') || block.text || ''
-  }
-
-  return ''
+  return translationContent.value?.[index] || ''
 }
 
 /**
  * 加载文章翻译
  */
 const loadTranslation = async () => {
-  if (!props.article?.id) return
+  const articleId = props.article?.id
+  if (!articleId) return
+  const requestId = ++translationRequestId
 
   try {
     translationLoading.value = true
-    const response = await getArticleTranslation(props.article.id)
-    if (response.code === 0 && response.data) {
-      // 解析JSON格式的翻译内容
-      try {
-        // 后端返回的 data 字段是 JSON 字符串，需要先解析
-        let parsedData
-        if (typeof response.data === 'string') {
-          // 先解码转义的换行符
-          let jsonStr = response.data.replace(/\\\\n/g, '\n')
-          // 解析 JSON
-          try {
-            parsedData = JSON.parse(jsonStr)
-          } catch (e) {
-            console.error('解析翻译内容 JSON 失败:', e)
-            console.error('原始数据:', response.data)
-            console.error('解码后的数据:', jsonStr)
-            throw e
-          }
-        } else {
-          parsedData = response.data
-        }
-
-        // 确保解析后的数据包含 blocks 数组
-        if (parsedData && parsedData.blocks && Array.isArray(parsedData.blocks)) {
-          translationContent.value = parsedData
-        } else {
-          console.error('翻译数据格式不正确，缺少 blocks 数组:', parsedData)
-          ElMessage.error('翻译内容格式错误')
-        }
-      } catch (e) {
-        console.error('解析翻译内容失败:', e)
-        ElMessage.error('翻译内容格式错误')
-      }
-    }
+    const response = await getArticleTranslation(articleId)
+    if (requestId !== translationRequestId) return
+    if (!response.data) throw new Error('暂无文章翻译')
+    translationContent.value = parseArticleTranslation(response.data)
   } catch (err) {
+    if (requestId !== translationRequestId) return
     console.error('加载翻译失败:', err)
-    ElMessage.error('加载翻译失败，请重试')
+    ElMessage.error(err instanceof Error ? err.message : '加载翻译失败，请重试')
   } finally {
-    translationLoading.value = false
+    if (requestId === translationRequestId) translationLoading.value = false
   }
 }
 
@@ -1194,7 +1148,11 @@ const showToast = (message: string) => {
 // Keep each article's pending upload attached to its own session.
 watch(() => props.article?.id, (articleId) => {
   stopReadingTimer()
+  translationRequestId++
+  translationContent.value = null
+  translationLoading.value = false
   if (articleId) startReadingTimer(articleId)
+  if (articleId && showTranslateDrawer.value) void loadTranslation()
 }, { immediate: true })
 
 onMounted(() => {
