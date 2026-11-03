@@ -29,6 +29,12 @@
 
     <!-- 工具栏 -->
     <div class="article-toolbar">
+      <router-link class="toolbar-brand" to="/english/articles" aria-label="返回英语文章列表">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 12H5m6 6-6-6 6-6" />
+        </svg>
+        学灵悦读
+      </router-link>
       <div class="toolbar-left">
         <!-- 阅读状态显示 -->
         <div class="reading-status">
@@ -81,7 +87,7 @@
 
       <div class="toolbar-right">
         <div class="btn-tooltip-trigger">
-          <button class="toolbar-button translate-btn" @click="toggleTranslation">
+          <button class="toolbar-button translate-btn" :class="{ 'is-active': showTranslateDrawer }" :aria-pressed="showTranslateDrawer" @click="toggleTranslation">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"/>
             </svg>
@@ -96,7 +102,8 @@
         <div class="btn-tooltip-trigger">
           <button
             class="toolbar-button vocab-btn"
-            :class="{ disabled: !isVIP }"
+            :class="{ disabled: !isVIP, 'is-active': activeSidebar === 'vocab' }"
+            :aria-expanded="activeSidebar === 'vocab'"
             @click="handleVocabClick"
           >
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -115,7 +122,8 @@
         <div class="btn-tooltip-trigger">
           <button
             class="toolbar-button quiz-btn"
-            :class="{ disabled: !isSVIP }"
+            :class="{ disabled: !isSVIP, 'is-active': activeSidebar === 'quiz' }"
+            :aria-expanded="activeSidebar === 'quiz'"
             @click="handleQuizClick"
           >
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -138,34 +146,32 @@
     <div class="reader-main">
       <!-- 文章内容 -->
       <main class="article-main">
+        <!-- 文章标题和信息 -->
+        <div class="article-header">
+          <div class="article-eyebrow"><span class="eyebrow-line"></span> ENGLISH READING <span class="eyebrow-index">/ {{ String(article?.id ?? '').padStart(2, '0') }}</span></div>
+          <button v-if="!article?.imageUrl || imageFailed" class="header-favorite" type="button" :aria-label="isFavorited ? '取消收藏' : '收藏文章'" @click="handleToggleFavorite">
+            {{ isFavorited ? '♥ 已收藏' : '♡ 收藏文章' }}
+          </button>
+          <h1 class="article-title">{{ article?.title }}</h1>
+          <div class="article-meta">
+            <div class="meta-item"><img :src="defaultAvatar" class="author-avatar" alt=""><span>{{ article?.author || '学灵编辑' }}</span></div>
+            <span class="meta-separator">/</span>
+            <span>{{ formatDate(article?.createTime) }}</span>
+            <span class="meta-separator">/</span>
+            <span>约 {{ readingTime }} 分钟</span>
+          </div>
+          <p class="desktop-reading-tip">点击句子展开分析，选中文字可查词。让阅读从自己的节奏开始。</p>
+          <p class="mobile-reading-tip">轻点句子可查看分析；长按文字可查词</p>
+        </div>
         <!-- 文章封面 -->
         <div v-if="article?.imageUrl && article.imageUrl.trim() !== '' && !imageFailed" class="article-cover">
-          <img :src="article.imageUrl.trim()" :alt="article.title" class="cover-image" 
+          <img :src="article.imageUrl.trim()" :alt="article.title" class="cover-image"
                @error="handleImageError" @load="handleImageLoad">
           <button class="like-button" :aria-label="isFavorited ? '取消收藏' : '收藏文章'" @click="handleToggleFavorite">
             <svg class="heart-icon" :class="{ liked: isFavorited }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
             </svg>
           </button>
-        </div>
-
-        <!-- 文章标题和信息 -->
-        <div class="article-header">
-          <button v-if="!article?.imageUrl || imageFailed" class="header-favorite" type="button" @click="handleToggleFavorite">
-            {{ isFavorited ? '♥ 已收藏' : '♡ 收藏文章' }}
-          </button>
-          <h1 class="article-title">{{ article?.title }}</h1>
-          <div class="article-meta">
-            <div class="meta-item">
-              <img :src="defaultAvatar" class="author-avatar" alt="Author">
-              <span>{{ article?.author }}</span>
-            </div>
-            <span class="meta-separator">•</span>
-            <span>{{ formatDate(article?.createTime) }}</span>
-            <span class="meta-separator">•</span>
-            <span>阅读时长 {{ readingTime }}分钟</span>
-          </div>
-          <p class="mobile-reading-tip">轻点句子可查看分析；长按文字可查词</p>
         </div>
 
         <!-- 文章内容 -->
@@ -267,6 +273,7 @@
         <div class="sidebar-header">
           <h4>词汇汇总</h4>
           <span class="vip-badge">VIP</span>
+          <button class="sidebar-close" type="button" aria-label="关闭词汇汇总" @click="activeSidebar = null">×</button>
         </div>
         <div class="sidebar-content" v-loading="vocabLoading">
           <div v-if="vocabularyPhrasesSummary" class="vocab-summary">
@@ -281,6 +288,7 @@
         <div class="sidebar-header">
           <h4> 阅读理解测试</h4>
           <span class="vip-badge">VIP</span>
+          <button class="sidebar-close" type="button" aria-label="关闭阅读测试" @click="activeSidebar = null">×</button>
         </div>
         <div class="sidebar-content">
           <div class="difficulty-selector">
@@ -347,6 +355,13 @@
           </div>
         </div>
       </aside>
+    </div>
+    <div v-if="pageProgress > 8" class="reading-compass" :style="{ '--reading-progress': `${pageProgress}%` }">
+      <button type="button" :aria-label="`已浏览 ${Math.round(pageProgress)}%，返回文章顶部`" title="返回文章顶部" @click="scrollToTop">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 19V5m-6 6 6-6 6 6" />
+        </svg>
+      </button>
     </div>
     <div v-if="selectedSentence" class="mobile-sentence-actions" role="group" aria-label="句子操作">
       <p>{{ selectedSentence }}</p>
@@ -441,7 +456,7 @@ const translationContent = ref<any>(null)
 const fontScale = ref(0)
 const selectedSentence = ref('')
 const pageProgress = ref(0)
-const articleMain = ref<HTMLElement | null>(null)
+const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' })
 
 const selectSentence = (sentence: string) => {
   if (!window.matchMedia('(max-width: 768px)').matches || window.getSelection()?.toString().trim()) return
@@ -449,11 +464,8 @@ const selectSentence = (sentence: string) => {
 }
 
 const updatePageProgress = () => {
-  const mobile = window.matchMedia('(max-width: 768px)').matches
-  const scrollTop = mobile ? window.scrollY : (articleMain.value?.scrollTop ?? 0)
-  const scrollRange = mobile
-    ? document.documentElement.scrollHeight - window.innerHeight
-    : (articleMain.value?.scrollHeight ?? 0) - (articleMain.value?.clientHeight ?? 0)
+  const scrollTop = window.scrollY
+  const scrollRange = document.documentElement.scrollHeight - window.innerHeight
   pageProgress.value = scrollRange > 0 ? Math.min(100, Math.max(0, scrollTop / scrollRange * 100)) : 0
   if (scrollTop > 48 && !isReadingInProgress.value && !isReadComplete.value) startReading()
 }
@@ -522,6 +534,8 @@ const vocabularyList = computed(() => {
 
 // 阅读状态计算属性
 const readingStatusText = computed(() => {
+  if (isReadComplete.value) return '已完成'
+  if (isReadingInProgress.value) return '阅读中'
   // 优先使用从后端获取的阅读状态
   if (props.readingStatus !== undefined) {
     switch (props.readingStatus) {
@@ -1185,9 +1199,7 @@ watch(() => props.article?.id, (articleId) => {
 
 onMounted(() => {
   progressInterval = window.setInterval(updateReadingProgress, 1000)
-  articleMain.value = document.querySelector('.article-main')
   window.addEventListener('scroll', updatePageProgress, { passive: true })
-  articleMain.value?.addEventListener('scroll', updatePageProgress, { passive: true })
   window.addEventListener('resize', updatePageProgress)
   updatePageProgress()
 })
@@ -1198,7 +1210,6 @@ onUnmounted(() => {
   window.clearInterval(progressInterval)
   window.removeEventListener('scroll', updatePageProgress)
   window.removeEventListener('resize', updatePageProgress)
-  articleMain.value?.removeEventListener('scroll', updatePageProgress)
   stopReadingTimer()
 })
 </script>
@@ -2714,7 +2725,7 @@ onUnmounted(() => {
   .toolbar-button { min-height: 42px; white-space: nowrap; }
   .reader-main { padding: 0 0 5rem; gap: 0; }
   .article-main { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
-  .article-cover { height: clamp(10rem, 42vw, 14rem); border-radius: 0; }
+  .article-cover { order: -1; height: clamp(10rem, 42vw, 14rem); border-radius: 0; }
   .article-cover .like-button { min-width: 44px; min-height: 44px; background: rgba(24, 43, 30, 0.65); }
   .article-header { padding: 1.35rem 1.25rem 0.5rem; }
   .article-title { font-size: clamp(1.55rem, 6vw, 2rem); line-height: 1.32; letter-spacing: -0.02em; }
@@ -2751,5 +2762,162 @@ onUnmounted(() => {
 
 @media (prefers-reduced-motion: reduce) {
   .reading-progress span { transition: none; }
+}
+
+/* Desktop reading room: one calm page, one scroll context. */
+.toolbar-brand, .article-eyebrow, .desktop-reading-tip { display: none; }
+.sidebar-close {
+  width: 28px; height: 28px; display: grid; place-items: center;
+  border: 0; border-radius: 50%; background: transparent;
+  color: #718075; font-size: 21px; line-height: 1; cursor: pointer;
+}
+.sidebar-close:hover, .sidebar-close:focus-visible { background: #e8eee5; color: #244632; }
+.reading-compass { display: none; }
+
+@media (min-width: 769px) {
+  .article-reader {
+    height: auto; min-height: 100vh; overflow: visible;
+    background: #f3f1e9;
+    background-image: radial-gradient(circle at 50% 0, #faf8f1 0, transparent 58%);
+  }
+  .watermark-background, .watermark-letters-bg { display: none; }
+  .reader-nav { display: none; }
+  .article-toolbar {
+    top: 0; max-width: none; width: 100%; margin: 0;
+    padding: 11px max(24px, calc((100vw - 1340px)/2 + 24px)); gap: 20px;
+    border: 0; border-bottom: 1px solid #e1e4d8; border-radius: 0;
+    background: rgba(255, 254, 249, .96);
+    box-shadow: 0 8px 28px rgba(31, 52, 38, .055);
+    backdrop-filter: blur(18px);
+  }
+  .toolbar-brand {
+    display: flex; align-items: center; gap: 9px; flex: none;
+    padding-right: 21px; border-right: 1px solid #e3e6dc;
+    color: #315b40; font: 650 16px/1.3 var(--xl-font-display);
+    text-decoration: none; white-space: nowrap;
+  }
+  .toolbar-brand svg { width: 19px; height: 19px; transition: transform .2s ease; }
+  .toolbar-brand:hover svg { transform: translateX(-3px); }
+  .toolbar-brand:focus-visible { outline: 2px solid #a8784d; outline-offset: 4px; }
+  .toolbar-left, .toolbar-right { gap: 6px; }
+  .reading-status {
+    margin-right: 10px; padding: 8px 12px; border: 0; border-radius: 8px;
+    background: #eef2e9;
+  }
+  .status-indicator { color: #476451; font-size: 12px; font-weight: 700; letter-spacing: .03em; }
+  .status-dot { background: #9cae99; }
+  .status-indicator.active .status-dot { background: #4c7656; }
+  .highlight-toggle { padding: 7px 9px; border-radius: 8px; transition: background .2s ease; }
+  .highlight-toggle:hover { background: #f2f4ec; }
+  .highlight-toggle .toggle-label { color: #405446; font-size: 12px; font-weight: 650; }
+  .toggle-hint { display: none; }
+  .toggle-input:focus-visible + .toggle-track { outline: 2px solid #a8784d; outline-offset: 3px; }
+  .toggle-input:checked + .toggle-track { background: #456c4f; }
+  .highlight-legend {
+    position: absolute; top: calc(100% + 8px); left: 22px; z-index: 3;
+    margin: 0; padding: 10px 14px; gap: 14px;
+    border: 1px solid #e3e5da; border-radius: 9px; background: #fffefa;
+    box-shadow: 0 9px 24px rgba(31, 52, 38, .09);
+  }
+  .toolbar-button, .reader-type-controls {
+    min-height: 38px; border-color: transparent; background: transparent;
+    color: #45604d; box-shadow: none;
+  }
+  .toolbar-button { padding: 8px 10px; font-size: 12px; }
+  .toolbar-button:hover, .toolbar-button.is-active { background: #edf2e8; border-color: #d5e0d0; color: #234a32; }
+  .toolbar-button:focus-visible, .reader-type-controls button:focus-visible,
+  .header-favorite:focus-visible, .like-button:focus-visible,
+  .reading-compass button:focus-visible { outline: 2px solid #a8784d; outline-offset: 2px; }
+  .reader-type-controls { border-left: 1px solid #e4e6dd; border-radius: 0; padding-left: 10px; }
+  .reader-type-controls button { min-height: 32px; min-width: 32px; }
+  .reader-main {
+    max-width: 1340px; min-height: 0; overflow: visible;
+    padding: 28px 24px 96px; gap: 22px; align-items: flex-start;
+  }
+  .article-main {
+    min-height: 0; overflow: visible; display: block;
+    border: 1px solid #e6e3d8; border-radius: 12px; background: #fffefa;
+    box-shadow: 0 18px 55px rgba(46, 52, 38, .055);
+  }
+  .article-header { width: min(100%, 884px); padding: 64px 60px 31px; margin: 0 auto; }
+  .article-eyebrow {
+    display: flex; align-items: center; gap: 11px; margin-bottom: 21px;
+    color: #96704b; font: 700 11px/1.2 var(--xl-font-body); letter-spacing: .2em;
+  }
+  .eyebrow-line { width: 23px; height: 1px; background: #a8784d; }
+  .eyebrow-index { color: #a5aa98; letter-spacing: .04em; }
+  .article-title {
+    max-width: 760px; margin-bottom: 22px; color: #1c3025;
+    font: 600 clamp(38px, 4.2vw, 59px)/1.16 Georgia, 'Songti SC', serif;
+    letter-spacing: -.045em; overflow-wrap: anywhere;
+  }
+  .article-meta { gap: 13px; color: #798276; font-size: 12px; letter-spacing: .02em; }
+  .meta-item { gap: 8px; }
+  .author-avatar { width: 21px; height: 21px; }
+  .meta-separator { color: #c4c9ba; }
+  .desktop-reading-tip {
+    display: block; margin: 28px 0 0; padding-top: 19px;
+    border-top: 1px solid #e9e9e0; color: #879080; font-size: 12px; letter-spacing: .025em;
+  }
+  .article-cover {
+    width: calc(100% - 80px); height: clamp(220px, 27vw, 330px);
+    min-height: 0; margin: 0 auto; border-radius: 5px; background: #dce3d6;
+  }
+  .cover-image { object-position: center 43%; }
+  .article-cover:hover .cover-image { transform: scale(1.025); }
+  .article-cover::after {
+    content: ''; position: absolute; inset: 40% 0 0; pointer-events: none;
+    background: linear-gradient(transparent, rgba(17, 34, 24, .18));
+  }
+  .like-button { z-index: 2; top: 16px; right: 16px; background: rgba(21, 43, 29, .58); }
+  .like-button:hover { background: rgba(21, 43, 29, .84); transform: translateY(-2px); }
+  .header-favorite { float: right; border-radius: 99px; }
+  .article-body {
+    width: min(100%, 884px); padding: 56px 60px 58px; margin: 0 auto;
+    font-family: Georgia, 'Noto Serif SC', 'Songti SC', serif;
+    color: #26362d; line-height: 1.95; letter-spacing: .006em;
+  }
+  .article-body .paragraph { margin-bottom: 1.7em; line-height: inherit; }
+  .article-body .paragraph-text { line-height: inherit; text-align: left; margin-bottom: 0; }
+  .article-body .sentence-span { display: inline; padding: 2px 0; line-height: inherit; border-radius: 2px; }
+  .article-body .sentence-span:hover { background: #edf3e9; box-shadow: 0 0 0 3px #edf3e9; }
+  .sentence-toolbar { background: #263f2e; border-color: #263f2e; border-radius: 8px; box-shadow: 0 12px 28px rgba(28, 48, 37, .22); }
+  .sentence-toolbar .toolbar-action { color: #fff; border: 0; background: transparent; }
+  .sentence-toolbar .toolbar-action:hover { background: #405f47; color: #fff; }
+  .article-body .paragraph-title { border: 0; padding: 0; margin: 2em 0 .65em; font: 600 1.4em/1.4 Georgia, 'Songti SC', serif; color: #244632; }
+  .article-body .paragraph-translation { background: #f5f7f1; border-color: #9bad91; border-radius: 5px; color: #526453; }
+  .finish-section { border-top: 1px solid #ecece2; margin: 0 60px; }
+  .vocab-sidebar, .quiz-sidebar {
+    top: 80px; border: 1px solid #e1e4d8; border-radius: 10px;
+    background: #fffefa; box-shadow: 0 12px 36px rgba(31, 52, 38, .07);
+  }
+  .vocab-sidebar.active, .quiz-sidebar.active { width: clamp(250px, 23vw, 305px); margin-left: 0; }
+  .sidebar-header { gap: 8px; padding: 17px 17px; background: #f7f8f2; border-bottom-color: #e6e8df; }
+  .sidebar-header h4 { flex: 1; color: #284534; font-size: 14px; }
+  .sidebar-content { padding: 17px; }
+  .reading-compass {
+    position: fixed; right: max(23px, calc((100vw - 1430px)/2)); bottom: 26px; z-index: 35;
+    display: grid; place-items: center; width: 52px; height: 52px; padding: 4px;
+    border-radius: 50%;
+    background: conic-gradient(#a8784d var(--reading-progress), #dce3d7 0);
+    box-shadow: 0 10px 32px rgba(31, 52, 38, .12);
+    animation: compass-in .3s ease both;
+  }
+  .reading-compass button { width: 44px; height: 44px; display: grid; place-items: center; border: 2px solid #fffefa; border-radius: 50%; background: #315b40; color: white; cursor: pointer; }
+  .reading-compass button svg { width: 18px; height: 18px; }
+  .reading-compass button:hover { background: #234a32; transform: translateY(-2px); }
+  @keyframes compass-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+}
+
+@media (min-width: 769px) and (max-width: 1140px) {
+  .article-toolbar { gap: 10px; }
+  .reader-main { padding-left: 16px; padding-right: 16px; }
+  .article-toolbar .toolbar-left, .article-toolbar .toolbar-right { flex-wrap: wrap; }
+  .article-header, .article-body { padding-left: 42px; padding-right: 42px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reading-compass { animation: none; }
+  .reading-compass button { transition: none; }
 }
 </style>
