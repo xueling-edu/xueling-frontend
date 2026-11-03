@@ -22,6 +22,9 @@
           </div>
         </div>
       </div>
+      <div class="reading-progress" role="progressbar" :aria-valuenow="Math.round(pageProgress)" aria-valuemin="0" aria-valuemax="100" aria-label="文章阅读进度">
+        <span :style="{ width: `${pageProgress}%` }"></span>
+      </div>
     </nav>
 
     <!-- 工具栏 -->
@@ -85,6 +88,11 @@
             <span>中文翻译</span>
           </button>
         </div>
+        <div class="reader-type-controls" aria-label="正文字号">
+          <button type="button" aria-label="缩小正文字号" :disabled="fontScale <= 0" @click="fontScale--">A−</button>
+          <span>字号</span>
+          <button type="button" aria-label="放大正文字号" :disabled="fontScale >= 3" @click="fontScale++">A＋</button>
+        </div>
         <div class="btn-tooltip-trigger">
           <button
             class="toolbar-button vocab-btn"
@@ -134,7 +142,7 @@
         <div v-if="article?.imageUrl && article.imageUrl.trim() !== '' && !imageFailed" class="article-cover">
           <img :src="article.imageUrl.trim()" :alt="article.title" class="cover-image" 
                @error="handleImageError" @load="handleImageLoad">
-          <button class="like-button" @click="handleToggleFavorite">
+          <button class="like-button" :aria-label="isFavorited ? '取消收藏' : '收藏文章'" @click="handleToggleFavorite">
             <svg class="heart-icon" :class="{ liked: isFavorited }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
             </svg>
@@ -157,11 +165,12 @@
             <span class="meta-separator">•</span>
             <span>阅读时长 {{ readingTime }}分钟</span>
           </div>
+          <p class="mobile-reading-tip">轻点句子可查看分析；长按文字可查词</p>
         </div>
 
         <!-- 文章内容 -->
         <SelectionWordLookup>
-        <div class="article-body" :class="{ 'show-highlights': showHighlights, 'show-translation': showTranslateDrawer }">
+        <div class="article-body" :class="{ 'show-highlights': showHighlights, 'show-translation': showTranslateDrawer }" :style="{ '--reader-font-size': `${17 + fontScale * 2}px` }">
           <div
             v-for="(paragraph, index) in parsedParagraphs"
             :key="index"
@@ -179,6 +188,8 @@
                   v-for="(sentence, sentenceIndex) in paragraph.sentences"
                   :key="`${index}-${sentenceIndex}`"
                   class="sentence-span"
+                  :class="{ 'sentence-selected': selectedSentence === sentence }"
+                  @click="selectSentence(sentence)"
                 >
                   <span
                     v-for="(part, partIndex) in highlightSentence(sentence)"
@@ -337,6 +348,14 @@
         </div>
       </aside>
     </div>
+    <div v-if="selectedSentence" class="mobile-sentence-actions" role="group" aria-label="句子操作">
+      <p>{{ selectedSentence }}</p>
+      <div>
+        <button type="button" @click="handleAnalyzeSentence(selectedSentence); selectedSentence = ''">分析句子</button>
+        <button type="button" @click="handleAIChat(selectedSentence); selectedSentence = ''">AI 对话</button>
+        <button type="button" class="sentence-actions-close" aria-label="关闭句子操作" @click="selectedSentence = ''">×</button>
+      </div>
+    </div>
 
     <!-- 句子分析对话框 -->
     <el-dialog
@@ -419,6 +438,25 @@ const toast = ref({
 const showTranslateDrawer = ref(false)
 const translationLoading = ref(false)
 const translationContent = ref<any>(null)
+const fontScale = ref(0)
+const selectedSentence = ref('')
+const pageProgress = ref(0)
+const articleMain = ref<HTMLElement | null>(null)
+
+const selectSentence = (sentence: string) => {
+  if (!window.matchMedia('(max-width: 768px)').matches || window.getSelection()?.toString().trim()) return
+  selectedSentence.value = selectedSentence.value === sentence ? '' : sentence
+}
+
+const updatePageProgress = () => {
+  const mobile = window.matchMedia('(max-width: 768px)').matches
+  const scrollTop = mobile ? window.scrollY : (articleMain.value?.scrollTop ?? 0)
+  const scrollRange = mobile
+    ? document.documentElement.scrollHeight - window.innerHeight
+    : (articleMain.value?.scrollHeight ?? 0) - (articleMain.value?.clientHeight ?? 0)
+  pageProgress.value = scrollRange > 0 ? Math.min(100, Math.max(0, scrollTop / scrollRange * 100)) : 0
+  if (scrollTop > 48 && !isReadingInProgress.value && !isReadComplete.value) startReading()
+}
 
 // 阅读状态相关
 const isReadingInProgress = ref(false)
@@ -1243,29 +1281,21 @@ onMounted(() => {
   }
   
   // 设置阅读进度更新定时器
-  const progressInterval = setInterval(updateReadingProgress, 1000) // 每秒更新一次
-  
-  // 监听滚动事件，自动开始阅读
-  const articleContainer = document.querySelector('.article-body')
-  if (articleContainer) {
-    articleContainer.addEventListener('scroll', () => {
-      if (!isReadingInProgress.value && !isReadComplete.value) {
-        startReading()
-      }
-    })
-  }
-  
-  onUnmounted(() => {
-    // 清理定时器和事件监听器
-    clearInterval(progressInterval)
-    if (articleContainer) {
-      articleContainer.removeEventListener('scroll', startReading)
-    }
-  })
+  progressInterval = window.setInterval(updateReadingProgress, 1000)
+  articleMain.value = document.querySelector('.article-main')
+  window.addEventListener('scroll', updatePageProgress, { passive: true })
+  articleMain.value?.addEventListener('scroll', updatePageProgress, { passive: true })
+  window.addEventListener('resize', updatePageProgress)
+  updatePageProgress()
 })
 
 // 组件卸载时停止阅读计时器
+let progressInterval: number | undefined
 onUnmounted(() => {
+  window.clearInterval(progressInterval)
+  window.removeEventListener('scroll', updatePageProgress)
+  window.removeEventListener('resize', updatePageProgress)
+  articleMain.value?.removeEventListener('scroll', updatePageProgress)
   stopReadingTimer()
 })
 </script>
@@ -2712,5 +2742,111 @@ onUnmounted(() => {
     font-size: 0.95rem;
     line-height: 1.8;
   }
+}
+
+/* Reading surface: keep the text calm and the controls within reach. */
+.reading-progress {
+  height: 3px;
+  background: #e7ece5;
+}
+
+.reading-progress span {
+  display: block;
+  height: 100%;
+  background: var(--xl-brand);
+  transition: width 120ms linear;
+}
+
+.reader-type-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem;
+  border: 1px solid var(--xl-border);
+  border-radius: 0.65rem;
+  background: var(--xl-surface);
+  white-space: nowrap;
+  color: var(--xl-ink);
+  font-size: 0.75rem;
+}
+
+.reader-type-controls button {
+  min-width: 38px;
+  min-height: 38px;
+  border: 0;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: var(--xl-brand);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.reader-type-controls button:hover:not(:disabled) { background: #edf3e9; }
+.reader-type-controls button:disabled { opacity: 0.35; cursor: default; }
+.article-body { font-size: var(--reader-font-size); text-align: left; }
+.article-body .paragraph-text { text-align: left; }
+.mobile-sentence-actions { display: none; }
+.mobile-reading-tip { display: none; }
+
+@media (max-width: 768px) {
+  .article-reader { min-height: 100dvh; background: #fffefa; }
+  .reader-nav { position: sticky; top: 0; }
+  .nav-content { height: 3.25rem; }
+  .nav-brand { font-size: 1rem; }
+  .nav-user .vip-badge { display: none; }
+  .article-toolbar {
+    position: static;
+    padding: 0.65rem max(1rem, env(safe-area-inset-left)) 0.75rem;
+    gap: 0.65rem;
+    box-shadow: none;
+  }
+  .toolbar-left, .toolbar-right { flex-wrap: nowrap; gap: 0.65rem; }
+  .toolbar-left { overflow-x: auto; scrollbar-width: none; }
+  .toolbar-left::-webkit-scrollbar { display: none; }
+  .toolbar-right { overflow-x: auto; scrollbar-width: none; }
+  .toolbar-right::-webkit-scrollbar { display: none; }
+  .reading-status { margin-right: 0; white-space: nowrap; }
+  .highlight-toggle { flex: none; white-space: nowrap; min-height: 38px; }
+  .highlight-legend, .toggle-hint, .btn-tooltip { display: none; }
+  .toolbar-button { min-height: 42px; white-space: nowrap; }
+  .reader-main { padding: 0 0 5rem; gap: 0; }
+  .article-main { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+  .article-cover { height: clamp(10rem, 42vw, 14rem); border-radius: 0; }
+  .article-cover .like-button { min-width: 44px; min-height: 44px; background: rgba(24, 43, 30, 0.65); }
+  .article-header { padding: 1.35rem 1.25rem 0.5rem; }
+  .article-title { font-size: clamp(1.55rem, 6vw, 2rem); line-height: 1.32; letter-spacing: -0.02em; }
+  .article-meta { flex-wrap: wrap; column-gap: 0.5rem; row-gap: 0.3rem; font-size: 0.78rem; }
+  .mobile-reading-tip { display: block; margin: 0.8rem 0 0; color: #70806f; font-size: 0.78rem; line-height: 1.5; }
+  .article-body { width: 100%; padding: 0.5rem 1.25rem 1.5rem; line-height: 1.85; }
+  .article-body .paragraph { margin-bottom: 1.4em; line-height: inherit; }
+  .article-body .paragraph-text { line-height: inherit; margin-bottom: 0; }
+  .article-body .sentence-span { display: inline; padding: 0; line-height: inherit; cursor: pointer; }
+  .article-body .sentence-span:hover { box-shadow: none; }
+  .article-body .sentence-span.sentence-selected { background: #e4f1df; border-radius: 0.2em; }
+  .article-body .sentence-toolbar { display: none; }
+  .article-body .paragraph-translation { margin-top: 0.8rem; padding: 0.75rem 0.85rem; line-height: 1.7; }
+  .article-body .paragraph-title { line-height: 1.45; }
+  .mobile-sentence-actions {
+    display: block;
+    position: fixed;
+    z-index: 55;
+    left: 0.75rem;
+    right: 0.75rem;
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
+    padding: 0.75rem;
+    background: #fffefa;
+    border: 1px solid #cbd9c9;
+    border-radius: 1rem;
+    box-shadow: 0 12px 38px rgba(24, 43, 30, 0.18);
+  }
+  .mobile-sentence-actions p { margin: 0 0 0.65rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8rem; color: #536454; }
+  .mobile-sentence-actions > div { display: flex; gap: 0.5rem; }
+  .mobile-sentence-actions button { flex: 1; min-height: 44px; border: 1px solid #c5d3c2; border-radius: 0.6rem; background: #edf3e9; color: var(--xl-brand); font-weight: 700; }
+  .mobile-sentence-actions .sentence-actions-close { flex: 0 0 44px; font-size: 1.35rem; background: transparent; }
+  .sentence-analysis-dialog { width: calc(100vw - 1.5rem) !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reading-progress span { transition: none; }
 }
 </style>
