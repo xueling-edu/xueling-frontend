@@ -8,6 +8,23 @@ import type { ApiResponse } from '@/types/auth'
 import type { TranslateResult, Translation } from '@/types/translate'
 import type { WordDictionary } from '@/features/vocab/types'
 
+export interface ChineseWordCandidate {
+  wordId: string
+  word: string
+  pos: string
+  matchedGloss: string
+  phonetic?: string
+  source: string
+}
+
+export interface ChineseWordLookup {
+  query: string
+  candidates: ChineseWordCandidate[]
+}
+
+export const lookupChineseWord = (word: string): Promise<ApiResponse<ChineseWordLookup>> =>
+  request.get('/dictionary/zh-en', { params: { word: word.trim() } })
+
 /**
  * 翻译单词
  * @param text 要翻译的单词

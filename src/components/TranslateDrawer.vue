@@ -32,18 +32,22 @@
 
         <!-- 输入区域 -->
         <div class="input-section">
+          <div class="direction-switch" role="group" aria-label="翻译方向">
+            <button type="button" :class="{ active: direction === 'en-zh' }" @click="changeDirection('en-zh')">英译中</button>
+            <button type="button" :class="{ active: direction === 'zh-en' }" @click="changeDirection('zh-en')">中译英</button>
+          </div>
           <div class="input-wrapper">
             <el-input
               v-model="inputText"
-              placeholder="输入要查询的单词"
+              :placeholder="direction === 'zh-en' ? '输入中文词语' : '输入要查询的英文单词'"
               clearable
               @keydown.enter="handleTranslate"
-              :disabled="isTranslating"
+              :disabled="isBusy"
               class="translate-input"
             />
             <el-button
               type="primary"
-              :loading="isTranslating"
+              :loading="isBusy"
               @click="handleTranslate"
               :disabled="!inputText.trim()"
               class="translate-btn"
@@ -54,11 +58,11 @@
         </div>
 
         <!-- 结果区域 -->
-        <div class="result-section" v-loading="isTranslating">
+        <div class="result-section" v-loading="isBusy">
           <!-- 错误提示 -->
           <el-alert
-            v-if="error"
-            :title="error"
+            v-if="activeError"
+            :title="activeError"
             type="error"
             :closable="false"
             show-icon
@@ -66,7 +70,21 @@
           />
 
           <!-- 翻译结果 -->
+          <div v-else-if="direction === 'zh-en' && !selectedChineseCandidate" class="result-content">
+            <div v-if="chineseLookup" class="chinese-results">
+              <h2>“{{ chineseLookup.query }}”的英文词</h2>
+              <p v-if="!chineseLookup.candidates.length">词典中暂未收录这个中文词语</p>
+              <button v-for="candidate in chineseLookup.candidates" :key="candidate.wordId + candidate.pos"
+                type="button" class="chinese-candidate" @click="selectChineseCandidate(candidate)">
+                <strong>{{ candidate.word }}</strong>
+                <span>{{ candidate.pos }} · {{ candidate.matchedGloss }}</span>
+                <small v-if="candidate.phonetic">/{{ candidate.phonetic }}/</small>
+              </button>
+            </div>
+            <div v-else class="empty-state"><p class="empty-text">输入中文词语开始查词</p></div>
+          </div>
           <div v-else-if="currentResult" class="result-content">
+            <button v-if="selectedChineseCandidate" type="button" class="back-to-candidates" @click="backToChineseCandidates">← 返回英文候选</button>
             <div class="result-card">
               <!-- 单词卡片头部 -->
               <div class="card-header">
@@ -168,7 +186,7 @@
         </div>
 
         <!-- 翻译历史 (紧凑版) -->
-        <div class="history-section" v-if="recentHistory.length > 0">
+        <div class="history-section" v-if="direction === 'zh-en' ? chineseHistory.length > 0 : recentHistory.length > 0">
           <div class="history-header">
             <div class="header-left">
               <el-icon><Clock /></el-icon>
@@ -185,7 +203,7 @@
           </div>
           <div class="history-list-compact">
             <div
-              v-for="item in recentHistory"
+              v-for="item in direction === 'zh-en' ? chineseHistory.slice(0, 5) : recentHistory"
               :key="item.id"
               class="history-tag"
               @click="retranslate(item.word)"
@@ -194,7 +212,7 @@
               <span class="tag-text">{{ item.word }}</span>
               <el-icon 
                 class="tag-close"
-                @click.stop="removeFromHistory(item.id)"
+                @click.stop="removeHistoryItem(item.id)"
               >
                 <Close />
               </el-icon>
@@ -321,7 +339,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, reactive, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, reactive, watch } from 'vue'
 import { 
   Document, 
   Close, 
@@ -338,20 +356,33 @@ import {
 import { Vue3Lottie } from 'vue3-lottie'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useTranslate } from '@/composables/useTranslate'
+import { lookupChineseWord, translateText } from '@/api/translate'
+import type { ChineseWordCandidate, ChineseWordLookup } from '@/api/translate'
 import ActionIcon from '@/components/ActionIcon.vue'
 import { getWordBooks } from '@/features/vocab/api'
 import { matchWords, addWordsToBook, removeWordsFromBook } from '@/features/vocab/api'
 import type { WordBookVo } from '@/features/vocab/types'
 import { useTokenStore } from '@/stores/token'
+import { useUserStore } from '@/stores/user'
 import { useRoute } from 'vue-router'
 import { createFeedback } from '@/features/feedback/api'
 import { createRequestId } from '@/utils/requestId'
 import { cancelEnglishWord, preloadEnglishWord, speakEnglishWord } from '@/utils/wordSpeech'
 
 const tokenStore = useTokenStore()
+const userStore = useUserStore()
 const route = useRoute()
 const isOpen = ref(false)
 const inputText = ref('')
+const direction = ref<'en-zh' | 'zh-en'>('en-zh')
+const chineseLookup = ref<ChineseWordLookup | null>(null)
+const selectedChineseCandidate = ref<ChineseWordCandidate | null>(null)
+const chineseError = ref('')
+const chineseLoading = ref(false)
+type ChineseHistoryItem = { id: string; word: string; timestamp: number }
+const chineseHistory = ref<ChineseHistoryItem[]>([])
+const chineseHistoryKey = (id: string) => `xueling:translate-history:zh-en:v1:${id}`
+let chineseRequestId = 0
 
 // 反馈相关
 const feedbackVisible = ref(false)
@@ -381,6 +412,42 @@ const {
   clearHistory: clearHistoryFn,
   retranslate: retranslateFn
 } = useTranslate()
+const isBusy = computed(() => isTranslating.value || chineseLoading.value)
+const activeError = computed(() => direction.value === 'zh-en' ? chineseError.value : error.value)
+watch(() => userStore.userInfo?.id, id => {
+  chineseRequestId++
+  chineseLookup.value = null
+  selectedChineseCandidate.value = null
+  chineseLoading.value = false
+  chineseError.value = ''
+  chineseHistory.value = []
+  if (!id) return
+  try {
+    const saved = JSON.parse(localStorage.getItem(chineseHistoryKey(id)) || '[]')
+    chineseHistory.value = Array.isArray(saved) ? saved.filter((item: ChineseHistoryItem) =>
+      typeof item?.word === 'string' && typeof item?.id === 'string'
+      && Number.isFinite(item.timestamp) && Date.now() - item.timestamp <= 30 * 86400000
+    ).slice(0, 50) : []
+  } catch { chineseHistory.value = [] }
+}, { immediate: true })
+const saveChineseHistory = () => {
+  const id = userStore.userInfo?.id
+  if (!id) return
+  try { localStorage.setItem(chineseHistoryKey(id), JSON.stringify(chineseHistory.value)) }
+  catch { /* Browsers may disable local storage; lookup still works. */ }
+}
+const changeDirection = (next: 'en-zh' | 'zh-en') => {
+  if (direction.value === next) return
+  chineseRequestId++
+  direction.value = next
+  inputText.value = ''
+  chineseLookup.value = null
+  selectedChineseCandidate.value = null
+  chineseLoading.value = false
+  chineseError.value = ''
+  currentResult.value = null
+  error.value = ''
+}
 watch(() => isOpen.value ? currentResult.value?.word : undefined, word => {
   if (word) preloadEnglishWord(word)
 }, { immediate: true })
@@ -401,7 +468,60 @@ const toggleDrawer = () => {
 // 执行翻译
 const handleTranslate = async () => {
   if (!inputText.value.trim()) return
-  await translate(inputText.value)
+  if (direction.value === 'en-zh') {
+    await translate(inputText.value)
+    return
+  }
+  const word = inputText.value.normalize('NFKC').trim().replace(/\s+/g, ' ')
+  chineseRequestId++
+  const requestId = chineseRequestId
+  selectedChineseCandidate.value = null
+  chineseLookup.value = null
+  currentResult.value = null
+  chineseError.value = ''
+  if (!/^[\p{Script=Han}][\p{Script=Han}· ]{0,19}$/u.test(word)) {
+    chineseError.value = '请输入不超过20字的中文词语'
+    return
+  }
+  chineseLoading.value = true
+  try {
+    const response = await lookupChineseWord(word)
+    if (requestId !== chineseRequestId) return
+    chineseLookup.value = response.data
+    chineseHistory.value = [
+      { id: `${Date.now()}`, word, timestamp: Date.now() },
+      ...chineseHistory.value.filter(item => item.word !== word),
+    ].slice(0, 50)
+    saveChineseHistory()
+  } catch (err: any) {
+    if (requestId === chineseRequestId) chineseError.value = err?.msg || '中译英查词失败，请稍后重试'
+  } finally {
+    if (requestId === chineseRequestId) chineseLoading.value = false
+  }
+}
+const selectChineseCandidate = async (candidate: ChineseWordCandidate) => {
+  const requestId = ++chineseRequestId
+  chineseLoading.value = true
+  chineseError.value = ''
+  try {
+    const response = await translateText(candidate.word)
+    if (requestId !== chineseRequestId) return
+    if (response.code !== 0 || !response.data || response.data.id !== candidate.wordId) {
+      chineseError.value = '词条已发生变化，请重新查询'
+      return
+    }
+    currentResult.value = response.data
+    selectedChineseCandidate.value = candidate
+  } catch (err: any) {
+    if (requestId === chineseRequestId) chineseError.value = err?.msg || '读取英文词条失败'
+  } finally {
+    if (requestId === chineseRequestId) chineseLoading.value = false
+  }
+}
+const backToChineseCandidates = () => {
+  selectedChineseCandidate.value = null
+  currentResult.value = null
+  chineseError.value = ''
 }
 
 // 播放发音
@@ -660,7 +780,15 @@ const handleAddToBook = async () => {
 // 重新翻译
 const retranslate = async (word: string) => {
   inputText.value = word
-  await retranslateFn(word)
+  if (direction.value === 'zh-en') await handleTranslate()
+  else await retranslateFn(word)
+}
+
+const removeHistoryItem = (id: string) => {
+  if (direction.value === 'zh-en') {
+    chineseHistory.value = chineseHistory.value.filter(item => item.id !== id)
+    saveChineseHistory()
+  } else removeFromHistory(id)
 }
 
 // 清空历史
@@ -670,7 +798,10 @@ const clearHistory = () => {
     cancelButtonText: '取消',
     type: 'warning'
   }).then(() => {
-    clearHistoryFn()
+    if (direction.value === 'zh-en') {
+      chineseHistory.value = []
+      saveChineseHistory()
+    } else clearHistoryFn()
     ElMessage.success('已清空历史记录')
   }).catch(() => {})
 }
@@ -702,6 +833,17 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.direction-switch { display: flex; gap: 8px; margin-bottom: 12px; }
+.direction-switch button { border: 1px solid #cbdcc8; border-radius: 9px; padding: 7px 12px; background: #fffefa; color: #315840; cursor: pointer; }
+.direction-switch button.active { background: #285a3e; border-color: #285a3e; color: white; }
+.chinese-results h2 { font-size: 18px; margin: 0 0 12px; color: #254b34; }
+.chinese-results p { color: #708072; }
+.chinese-candidate { width: 100%; display: flex; align-items: baseline; gap: 10px; text-align: left; padding: 12px; margin: 8px 0; border: 1px solid #dce5d8; border-radius: 10px; background: #fffefa; color: #294631; cursor: pointer; }
+.chinese-candidate:hover { background: #edf3e9; border-color: #8eae93; }
+.chinese-candidate strong { font-size: 18px; }
+.chinese-candidate span { flex: 1; }
+.chinese-candidate small { color: #718376; }
+.back-to-candidates { border: 0; background: none; color: #285a3e; cursor: pointer; margin-bottom: 12px; padding: 0; }
 .translate-drawer-container {
   position: fixed;
   z-index: 9998;
