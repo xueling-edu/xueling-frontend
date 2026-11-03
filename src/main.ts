@@ -4,7 +4,6 @@ import ElementPlus from 'element-plus'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import 'element-plus/dist/index.css'
 import './styles/theme.css'
-import Vue3Lottie from 'vue3-lottie'
 
 import App from './App.vue'
 import router from './router'
@@ -18,9 +17,6 @@ app.use(createPinia())
 app.use(ElementPlus, {
   locale: zhCn,
 })
-
-// Configure Vue3Lottie
-app.use(Vue3Lottie)
 
 // Configure Vue Router
 app.use(router)

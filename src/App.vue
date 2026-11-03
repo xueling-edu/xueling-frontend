@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router'
-import AIAssistant from '@/components/AIAssistant.vue'
-import TranslateDrawer from '@/components/TranslateDrawer.vue'
+const AIAssistant = defineAsyncComponent(() => import('@/components/AIAssistant.vue'))
+const TranslateDrawer = defineAsyncComponent(() => import('@/components/TranslateDrawer.vue'))
 import { usePreferencesStore } from '@/stores/preferences'
 
 const route = useRoute()

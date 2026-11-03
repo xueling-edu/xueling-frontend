@@ -11,18 +11,21 @@ const selectedCategory = ref<number | null>(null)
 const loading = ref(true)
 const errorMessage = ref('')
 const brokenImageIds = ref(new Set<number>())
+let latestRequest = 0
 
 function formatDate(value: string): string {
   return value?.split(/[ T]/)[0] || ''
 }
 
 async function loadArticles(categoryId: number | null = selectedCategory.value) {
+  const requestId = ++latestRequest
   selectedCategory.value = categoryId
   loading.value = true
   errorMessage.value = ''
   try {
     const ids = categoryId === null ? categories.value.map((category) => category.id) : [categoryId]
     const responses = await Promise.all(ids.map((id) => getArticlesByCategory(id)))
+    if (requestId !== latestRequest) return
     const failed = responses.find((response) => response.code !== 0)
     if (failed) throw new Error(failed.msg || '文章加载失败')
     const byId = new Map<number, ArticleListItem>()
@@ -31,11 +34,12 @@ async function loadArticles(categoryId: number | null = selectedCategory.value) 
     }
     articles.value = [...byId.values()]
   } catch (error) {
+    if (requestId !== latestRequest) return
     console.error('加载文章失败:', error)
     articles.value = []
     errorMessage.value = error instanceof Error ? error.message : '文章暂时无法加载，请稍后重试。'
   } finally {
-    loading.value = false
+    if (requestId === latestRequest) loading.value = false
   }
 }
 

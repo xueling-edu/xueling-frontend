@@ -100,6 +100,13 @@ instance.interceptors.response.use(
     
         // 处理401错误（Token过期）
         if (err.response?.status === 401) {
+        // A retried request must never start another refresh cycle.
+        if (!originalConfig || originalConfig._retryAfterRefresh) {
+            tokenStore.removeToken()
+            router.push('/login')
+            return Promise.reject(err)
+        }
+        originalConfig._retryAfterRefresh = true
 
         // 如果不在刷新中，发起刷新请求
         if (!isRefreshing) {
@@ -120,15 +127,14 @@ instance.interceptors.response.use(
                 tokenStore.setToken(refreshRes.data)
                 
                 // 重试队列中的所有请求
-                requestsQueue.forEach(({ resolve, config }) => resolve(instance(config)))
-                requestsQueue = []
+                const queued = requestsQueue.splice(0)
+                queued.forEach(({ resolve, config }) => resolve(instance(config)))
                 
                 // 重试当前请求
                 return instance(originalConfig)
             } catch (refreshErr) {
                 // 刷新失败，清理队列并拒绝所有请求
-                requestsQueue.forEach(({ reject }) => reject(refreshErr))
-                requestsQueue = []
+                requestsQueue.splice(0).forEach(({ reject }) => reject(refreshErr))
 
                 // 刷新失败，需要重新登录
                 tokenStore.removeToken()

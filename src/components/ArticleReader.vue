@@ -400,7 +400,7 @@ import { useUserStore } from '@/stores/user'
 import { useArticleStore } from '@/stores/article'
 import { ElMessage } from 'element-plus'
 import { analyzeSentence, getArticleTranslation, getVocabularyPhrases } from '@/api/article'
-import { marked } from 'marked'
+import { safeMarkdown } from '@/utils/safeMarkdown'
 import type { ArticleVO } from '@/types/article'
 import SelectionWordLookup from '@/components/SelectionWordLookup.vue'
 import './ArticleReader.css'
@@ -466,8 +466,8 @@ const totalReadingTime = ref(0)
 const vocabLoading = ref(false)
 const vocabularyPhrasesSummary = ref<string>('')
 const readTimeTimer = ref<number | null>(null)
-const totalReadTime = ref(0) // 总阅读时间（秒）
-const lastSyncTime = ref(0) // 上次同步时间
+interface ReadingSession { articleId: number; total: number; synced: number; inFlight: Promise<void> | null; active: boolean }
+let readingSession: ReadingSession | null = null
 const showSentenceAnalysis = ref(false)
 const currentSentence = ref('')
 const sentenceAnalysisResult = ref('')
@@ -765,139 +765,60 @@ const loadVocabularyPhrasesSummary = async () => {
  * 将文本内容转换为HTML格式
  */
 const formatVocabularySummary = (content: string) => {
-  if (!content) return ''
-
-  // 使用marked库将Markdown转换为HTML
-  return marked(content)
+  return safeMarkdown(content)
 }
 
 /**
  * 格式化分析结果（Markdown格式）
  */
-const formatAnalysisResult = (content: string) => {
-  if (!content) return ''
-
-  let formatted = content
-
-  // 先处理多级标题
-  formatted = formatted.replace(/^###\s+(.*?)$/gm, '<h3>$1</h3>')
-  formatted = formatted.replace(/^##\s+(.*?)$/gm, '<h2>$1</h2>')
-  formatted = formatted.replace(/^#\s+(.*?)$/gm, '<h1>$1</h1>')
-
-  // 处理带颜色的文本 <font color="...">
-  // 保留原有的HTML标签，不进行任何转换
-
-  // 处理加粗文本 **text**
-  formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-
-  // 处理斜体文本 *text* (避免匹配已经处理过的 **text**)
-  formatted = formatted.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>')
-
-  // 处理代码 `code`
-  formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>')
-
-  // 处理句子高亮 [text]
-  formatted = formatted.replace(/\[([^\]]+)\]/g, '<span class="sentence-highlight">$1</span>')
-
-  // 处理换行，将连续的换行转换为段落分隔
-  formatted = formatted.replace(/\n\n+/g, '</p><p>')
-  formatted = formatted.replace(/\n/g, '<br>')
-
-  // 处理列表项 - 支持嵌套列表
-  const lines = formatted.split('<br>')
-  let inList = false
-  let listItems: string[] = []
-  const processedLines: string[] = []
-
-  for (const line of lines) {
-    // 检查是否是列表项（包括嵌套列表项）
-    const listMatch = line.match(/^(\s*)\*\s+(.*)$/)
-    if (listMatch) {
-      if (!inList) {
-        inList = true
-        listItems = []
-      }
-      // 保留缩进以支持嵌套列表
-      const indent = (listMatch[1]?.length ?? 0) / 4 // 假设4个空格为一个缩进级别
-      const indentClass = indent > 0 ? ` indent-${Math.min(indent, 3)}` : ''
-      listItems.push(`<li class="list-item${indentClass}">${listMatch[2]}</li>`)
-    } else {
-      if (inList) {
-        processedLines.push(`<ul>${listItems.join('')}</ul>`)
-        inList = false
-        listItems = []
-      }
-      processedLines.push(line)
-    }
-  }
-
-  // 处理最后一组列表项
-  if (inList) {
-    processedLines.push(`<ul>${listItems.join('')}</ul>`)
-  }
-
-  formatted = processedLines.join('<br>')
-
-  // 包装在段落标签中
-  if (!formatted.startsWith('<h') && !formatted.startsWith('<ul>')) {
-    formatted = `<p>${formatted}</p>`
-  }
-
-  return formatted
-}
+const formatAnalysisResult = (content: string) => safeMarkdown(content)
 
 /**
  * 开始阅读时间计时
  */
-const startReadingTimer = () => {
+const startReadingTimer = (articleId: number) => {
   if (readTimeTimer.value) return
-
+  const session: ReadingSession = { articleId, total: 0, synced: 0, inFlight: null, active: true }
+  readingSession = session
   readTimeTimer.value = window.setInterval(() => {
-    totalReadTime.value++
-
-    // 每150秒同步一次阅读时间到后端
-    if (totalReadTime.value - lastSyncTime.value >= 150) {
-      syncReadTime()
-    }
+    session.total++
+    if (session.total - session.synced >= 150) void syncReadTime(session)
   }, 1000)
-
-  // 更新阅读状态为阅读中
-  if (props.article?.id) {
-    updateReadingInProgress(props.article.id).catch(() => {
-      console.log('更新阅读状态失败')
-    })
-  }
+  updateReadingInProgress(articleId).catch(() => {
+    console.log('更新阅读状态失败')
+  })
 }
 
-/**
- * 停止阅读时间计时
- */
+/** Stop the timer and flush even a session shorter than 150 seconds. */
 const stopReadingTimer = () => {
   if (readTimeTimer.value) {
     clearInterval(readTimeTimer.value)
     readTimeTimer.value = null
-
-    // 停止时同步剩余的阅读时间
-    if (totalReadTime.value - lastSyncTime.value > 0) {
-      syncReadTime()
-    }
+  }
+  if (readingSession) {
+    readingSession.active = false
+    void syncReadTime(readingSession)
+    readingSession = null
   }
 }
 
-/**
- * 同步阅读时间到后端
- */
-const syncReadTime = async () => {
-  if (!props.article?.id || totalReadTime.value - lastSyncTime.value < 150) return
-
-  try {
-    const syncTime = totalReadTime.value - lastSyncTime.value
-    await addReadingTime(props.article.id, syncTime)
-    lastSyncTime.value = totalReadTime.value
-    console.log(`已同步阅读时间: ${syncTime}秒`)
-  } catch (err) {
+const syncReadTime = (session: ReadingSession): Promise<void> => {
+  if (session.inFlight) return session.inFlight
+  if (session.total <= session.synced) return Promise.resolve()
+  const through = session.total
+  const seconds = through - session.synced
+  let succeeded = false
+  session.inFlight = addReadingTime(session.articleId, seconds).then(() => {
+    session.synced = through
+    succeeded = true
+  }).catch((err) => {
     console.error('同步阅读时间失败:', err)
-  }
+  }).finally(() => {
+    session.inFlight = null
+    if (succeeded && session.total > session.synced &&
+      (!session.active || session.total - session.synced >= 150)) void syncReadTime(session)
+  })
+  return session.inFlight
 }
 
 /**
@@ -1124,11 +1045,6 @@ const updateReadingProgress = () => {
   if (isReadingInProgress.value && startReadingTime.value) {
     totalReadingTime.value = Math.floor((Date.now() - startReadingTime.value) / 1000) // 转换为秒
     
-    // 每30秒更新一次阅读时间到后端
-    if (totalReadingTime.value % 30 === 0 && props.article?.id) {
-      articleStore.addReadingTime(props.article.id, totalReadingTime.value)
-    }
-    
     // 如果阅读时间超过2.5分钟，自动标记为完成
     if (totalReadingTime.value >= 150 && !isReadComplete.value) {
       completeReading()
@@ -1261,26 +1177,13 @@ const showToast = (message: string) => {
   }, 3000)
 }
 
-// 监听文章变化，重置阅读计时器
-watch(() => props.article, (newArticle) => {
-  if (newArticle?.id) {
-    // 停止之前的计时器
-    stopReadingTimer()
-    // 重置阅读时间
-    totalReadTime.value = 0
-    lastSyncTime.value = 0
-    // 启动新的计时器
-    startReadingTimer()
-  }
+// Keep each article's pending upload attached to its own session.
+watch(() => props.article?.id, (articleId) => {
+  stopReadingTimer()
+  if (articleId) startReadingTimer(articleId)
 }, { immediate: true })
 
-// 组件挂载时启动阅读计时器
 onMounted(() => {
-  if (props.article?.id) {
-    startReadingTimer()
-  }
-  
-  // 设置阅读进度更新定时器
   progressInterval = window.setInterval(updateReadingProgress, 1000)
   articleMain.value = document.querySelector('.article-main')
   window.addEventListener('scroll', updatePageProgress, { passive: true })
