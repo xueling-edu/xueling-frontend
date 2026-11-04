@@ -33,7 +33,6 @@
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M19 12H5m6 6-6-6 6-6" />
         </svg>
-        学灵悦读
       </router-link>
       <div class="toolbar-left">
         <!-- 阅读状态显示 -->
@@ -65,24 +64,6 @@
           <span v-if="!isReadComplete" class="toggle-hint">(阅读完成后可用)</span>
         </label>
 
-        <div v-if="showHighlights" class="highlight-legend">
-          <div class="legend-item">
-            <span class="legend-dot vocab-dot"></span>
-            <span>核心生词</span>
-          </div>
-          <div class="legend-item">
-            <span class="legend-dot phrase-dot"></span>
-            <span>固定搭配/短语</span>
-          </div>
-          <div class="legend-item">
-            <span class="legend-dot logic-dot"></span>
-            <span>逻辑连接词</span>
-          </div>
-          <div class="legend-item">
-            <span class="legend-dot grammar-dot"></span>
-            <span>语法重点</span>
-          </div>
-        </div>
       </div>
 
       <div class="toolbar-right">
@@ -140,6 +121,7 @@
           </div>
         </div>
       </div>
+      <div class="toolbar-progress" aria-hidden="true"><span :style="{ width: `${pageProgress}%` }"></span></div>
     </div>
 
     <!-- 主内容区 -->
@@ -153,6 +135,7 @@
             {{ isFavorited ? '♥ 已收藏' : '♡ 收藏文章' }}
           </button>
           <h1 class="article-title">{{ article?.title }}</h1>
+          <p v-if="article?.chineseTitle" class="article-subtitle">{{ article.chineseTitle }}</p>
           <div class="article-meta">
             <div class="meta-item"><img :src="defaultAvatar" class="author-avatar" alt=""><span>{{ article?.author || '学灵编辑' }}</span></div>
             <span class="meta-separator">/</span>
@@ -172,6 +155,14 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
             </svg>
           </button>
+        </div>
+
+        <div v-if="showHighlights" class="highlight-legend" aria-label="重点高亮图例">
+          <span class="legend-label">阅读标记</span>
+          <span class="legend-item"><span class="legend-dot vocab-dot"></span>核心生词</span>
+          <span class="legend-item"><span class="legend-dot phrase-dot"></span>固定搭配</span>
+          <span class="legend-item"><span class="legend-dot logic-dot"></span>逻辑连接词</span>
+          <span class="legend-item"><span class="legend-dot grammar-dot"></span>语法重点</span>
         </div>
 
         <!-- 文章内容 -->
@@ -242,8 +233,10 @@
 
         <!-- 完成阅读按钮 -->
         <div class="finish-section" v-if="!isArticleReadComplete">
+          <div class="finish-copy"><span>END OF ARTICLE</span><p>读完这篇文章了吗？</p></div>
           <button class="finish-button" @click="handleMarkAsRead">
-            <span>✅ 我已读完</span>
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7" /></svg>
+            <span>完成阅读</span>
           </button>
         </div>
 
@@ -358,9 +351,7 @@
     </div>
     <div v-if="pageProgress > 8" class="reading-compass" :style="{ '--reading-progress': `${pageProgress}%` }">
       <button type="button" :aria-label="`已浏览 ${Math.round(pageProgress)}%，返回文章顶部`" title="返回文章顶部" @click="scrollToTop">
-        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 19V5m-6 6 6-6 6 6" />
-        </svg>
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5m-6 6 6-6 6 6" /></svg>
       </button>
     </div>
     <div v-if="selectedSentence" class="mobile-sentence-actions" role="group" aria-label="句子操作">
@@ -1330,19 +1321,14 @@ onUnmounted(() => {
 .article-cover {
   position: relative;
   width: 100%;
-  height: 12rem;
+  aspect-ratio: 3 / 2;
+  height: auto;
   min-height: 0;
   overflow: hidden;
-  /* 移除 flex-shrink: 0; 允许随容器滚动 */
-}
-
-@media (min-width: 640px) {
-  .article-cover {
-    height: 14rem;
-  }
 }
 
 .cover-image {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -2683,7 +2669,7 @@ onUnmounted(() => {
   .toolbar-button { min-height: 42px; white-space: nowrap; }
   .reader-main { padding: 0 0 5rem; gap: 0; }
   .article-main { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
-  .article-cover { order: -1; height: clamp(10rem, 42vw, 14rem); border-radius: 0; }
+  .article-cover { order: -1; border-radius: 0; }
   .article-cover .like-button { min-width: 44px; min-height: 44px; background: rgba(24, 43, 30, 0.65); }
   .article-header { padding: 1.35rem 1.25rem 0.5rem; }
   .article-title { font-size: clamp(1.55rem, 6vw, 2rem); line-height: 1.32; letter-spacing: -0.02em; }
@@ -2731,6 +2717,28 @@ onUnmounted(() => {
 }
 .sidebar-close:hover, .sidebar-close:focus-visible { background: #e8eee5; color: #244632; }
 .reading-compass { display: none; }
+.toolbar-progress { display: none; }
+.article-subtitle { margin: -9px 0 21px; color: #687b6a; font: 400 17px/1.6 'Songti SC', Georgia, serif; }
+.highlight-legend {
+  width: min(calc(100% - 40px), 764px); margin: 26px auto 0; padding: 12px 0;
+  flex-wrap: wrap; gap: 8px 18px; border-top: 1px solid #e7e8dd;
+  border-bottom: 1px solid #e7e8dd; color: #697a6c;
+}
+.legend-label { color: #8e7150; font-size: 11px; font-weight: 750; letter-spacing: .1em; }
+.legend-item { gap: 6px; white-space: nowrap; }
+.legend-dot { width: 9px; height: 9px; }
+.finish-copy span { color: #947754; font-size: 10px; font-weight: 750; letter-spacing: .19em; }
+.finish-copy p { margin: 7px 0 0; color: #253d2d; font: 500 21px/1.4 Georgia, 'Songti SC', serif; }
+.finish-button { gap: 9px; min-height: 48px; padding: 0 20px; border-radius: 7px; font-size: 13px; font-weight: 700; box-shadow: none; }
+.finish-button svg { width: 17px; height: 17px; }
+.finish-button:hover { box-shadow: 0 8px 18px rgba(31, 65, 42, .16); }
+.insights-section { background: #f5f6ee; border-top: 1px solid #e3e8d9; }
+.insights-header { color: #385b40; }
+.golden-quote { border-left: 2px solid #a78255; }
+.quote-text { color: #2d4032; font: italic 500 clamp(20px, 2.5vw, 27px)/1.7 Georgia, 'Songti SC', serif; }
+.quote-footer, .insights-notice-subtitle { color: #708072; }
+.insights-notice { text-align: left; border-top: 1px solid #e1e7dc; }
+.insights-notice-title { color: #3b5a42; }
 
 @media (min-width: 769px) {
   .article-reader {
@@ -2748,14 +2756,16 @@ onUnmounted(() => {
     box-shadow: 0 8px 28px rgba(31, 52, 38, .055);
     backdrop-filter: blur(18px);
   }
+  .toolbar-progress { display: block; position: absolute; inset: auto 0 0; height: 2px; background: #e7ebe2; }
+  .toolbar-progress span { display: block; height: 100%; background: #a57c4d; transition: width 120ms linear; }
   .toolbar-brand {
-    display: flex; align-items: center; gap: 9px; flex: none;
-    padding-right: 21px; border-right: 1px solid #e3e6dc;
+    display: grid; place-items: center; flex: none; width: 42px; height: 42px;
+    border: 1px solid #e3e6dc; border-radius: 8px;
     color: #315b40; font: 650 16px/1.3 var(--xl-font-display);
     text-decoration: none; white-space: nowrap;
   }
-  .toolbar-brand svg { width: 19px; height: 19px; transition: transform .2s ease; }
-  .toolbar-brand:hover svg { transform: translateX(-3px); }
+  .toolbar-brand svg { width: 20px; height: 20px; }
+  .toolbar-brand:hover { color: #244a32; background: #edf3e9; }
   .toolbar-brand:focus-visible { outline: 2px solid #a8784d; outline-offset: 4px; }
   .toolbar-left, .toolbar-right { gap: 6px; }
   .reading-status {
@@ -2771,12 +2781,6 @@ onUnmounted(() => {
   .toggle-hint { display: none; }
   .toggle-input:focus-visible + .toggle-track { outline: 2px solid #a8784d; outline-offset: 3px; }
   .toggle-input:checked + .toggle-track { background: #456c4f; }
-  .highlight-legend {
-    position: absolute; top: calc(100% + 8px); left: 22px; z-index: 3;
-    margin: 0; padding: 10px 14px; gap: 14px;
-    border: 1px solid #e3e5da; border-radius: 9px; background: #fffefa;
-    box-shadow: 0 9px 24px rgba(31, 52, 38, .09);
-  }
   .toolbar-button, .reader-type-controls {
     min-height: 38px; border-color: transparent; background: transparent;
     color: #45604d; box-shadow: none;
@@ -2818,7 +2822,7 @@ onUnmounted(() => {
     border-top: 1px solid #e9e9e0; color: #879080; font-size: 12px; letter-spacing: .025em;
   }
   .article-cover {
-    width: calc(100% - 80px); height: clamp(220px, 27vw, 330px);
+    width: min(calc(100% - 120px), 764px);
     min-height: 0; margin: 0 auto; border-radius: 5px; background: #dce3d6;
   }
   .cover-image { object-position: center 43%; }
@@ -2831,7 +2835,7 @@ onUnmounted(() => {
   .like-button:hover { background: rgba(21, 43, 29, .84); transform: translateY(-2px); }
   .header-favorite { float: right; border-radius: 99px; }
   .article-body {
-    width: min(100%, 884px); padding: 56px 60px 58px; margin: 0 auto;
+    width: min(100%, 884px); padding: 42px 60px 58px; margin: 0 auto;
     font-family: Georgia, 'Noto Serif SC', 'Songti SC', serif;
     color: #26362d; line-height: 1.95; letter-spacing: .006em;
   }
@@ -2844,7 +2848,8 @@ onUnmounted(() => {
   .sentence-toolbar .toolbar-action:hover { background: #405f47; color: #fff; }
   .article-body .paragraph-title { border: 0; padding: 0; margin: 2em 0 .65em; font: 600 1.4em/1.4 Georgia, 'Songti SC', serif; color: #244632; }
   .article-body .paragraph-translation { background: #f5f7f1; border-color: #9bad91; border-radius: 5px; color: #526453; }
-  .finish-section { border-top: 1px solid #ecece2; margin: 0 60px; }
+  .finish-section { align-items: center; justify-content: space-between; gap: 20px; border-top: 1px solid #ecece2; margin: 0 60px; padding: 33px 0 42px; }
+  .insights-content { max-width: 764px; margin: 0 auto; padding: 40px 0; }
   .vocab-sidebar, .quiz-sidebar {
     top: 80px; border: 1px solid #e1e4d8; border-radius: 10px;
     background: #fffefa; box-shadow: 0 12px 36px rgba(31, 52, 38, .07);
@@ -2872,6 +2877,41 @@ onUnmounted(() => {
   .reader-main { padding-left: 16px; padding-right: 16px; }
   .article-toolbar .toolbar-left, .article-toolbar .toolbar-right { flex-wrap: wrap; }
   .article-header, .article-body { padding-left: 42px; padding-right: 42px; }
+  .article-cover { width: calc(100% - 84px); }
+  .finish-section { margin-inline: 42px; }
+  .insights-content { padding-inline: 42px; }
+}
+
+@media (max-width: 768px) {
+  .article-reader { background: #f8f7f1; }
+  .reader-nav { background: #fffefa; box-shadow: 0 1px 0 #e8e9df; }
+  .article-toolbar { padding: 11px 20px 12px; border: 0; border-bottom: 1px solid #e5e8dc; background: #f4f5ed; }
+  .toolbar-left, .toolbar-right { gap: 8px; }
+  .reading-status { padding: 7px 10px; border-radius: 6px; background: #e8eee4; }
+  .status-indicator { color: #3b6245; font-size: 12px; font-weight: 700; }
+  .highlight-toggle { gap: 6px; }
+  .highlight-toggle .toggle-label { color: #395043; font-size: 12px; font-weight: 650; }
+  .toggle-track { width: 34px; height: 20px; }
+  .toggle-thumb { top: 3px; left: 3px; width: 14px; height: 14px; }
+  .toggle-input:checked + .toggle-track .toggle-thumb { transform: translateX(14px); }
+  .toolbar-button { min-height: 38px; padding: 7px 11px; border: 1px solid #dce4d8; border-radius: 6px; background: #fffefa; color: #375a40; font-size: 12px; font-weight: 650; }
+  .toolbar-button.is-active { background: #e3ece0; border-color: #aec5ad; }
+  .reader-type-controls { border-color: #dce4d8; border-radius: 6px; }
+  .reader-type-controls button { min-height: 32px; min-width: 32px; }
+  .article-header { padding: 31px 20px 24px; }
+  .article-title { margin-bottom: 14px; color: #203c2a; font: 600 clamp(30px, 8vw, 39px)/1.16 Georgia, 'Songti SC', serif; letter-spacing: -.04em; }
+  .article-subtitle { margin: 0 0 18px; font-size: 15px; }
+  .article-meta { color: #718071; font-size: 11px; }
+  .mobile-reading-tip { margin-top: 20px; padding-top: 14px; border-top: 1px solid #e5e8df; }
+  .article-cover { order: 0; width: calc(100% - 40px); margin: 0 auto; border-radius: 7px; background: #dce3d6; }
+  .article-cover:hover .cover-image { transform: none; }
+  .highlight-legend { display: flex; width: calc(100% - 40px); margin-top: 26px; padding: 12px 0; font-size: 11px; }
+  .legend-label { width: 100%; }
+  .article-body { padding: 30px 20px 44px; color: #283a2e; font-family: Georgia, 'Songti SC', serif; line-height: 1.9; }
+  .article-body .paragraph-title { margin-top: 1.8em; padding: 0; border: 0; color: #295039; font: 600 1.3em/1.45 Georgia, 'Songti SC', serif; }
+  .finish-section { align-items: flex-start; flex-direction: column; gap: 19px; margin: 0 20px; padding: 27px 0 35px; }
+  .finish-copy p { font-size: 20px; }
+  .insights-content { padding: 28px 20px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
